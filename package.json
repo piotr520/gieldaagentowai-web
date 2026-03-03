@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@prisma/client": "^6.10.1",
@@ -21,7 +22,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "8.57.1",
+    "eslint": "9.39.3",
     "eslint-config-next": "16.1.6",
     "prisma": "^6.10.1",
     "tailwindcss": "^4",
