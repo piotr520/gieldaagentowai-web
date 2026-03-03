@@ -1,14 +1,15 @@
-Ôªøimport Link from "next/link";
+import Link from "next/link";
 import { AGENTS } from "../lib/agents";
 import type { AgentCategory } from "../lib/types";
 
-export default function Home({
+export default async function Home({
   searchParams
 }: {
-  searchParams?: { q?: string; cat?: string };
+  searchParams?: Promise<{ q?: string; cat?: string }>;
 }) {
-  const q = (searchParams?.q ?? "").trim().toLowerCase();
-  const cat = (searchParams?.cat ?? "").trim();
+  const sp = searchParams ? await searchParams : {};
+  const q = (sp.q ?? "").trim().toLowerCase();
+  const cat = (sp.cat ?? "").trim();
 
   const categories = Array.from(new Set(AGENTS.map(a => a.category))).sort();
 
@@ -26,9 +27,9 @@ export default function Home({
   return (
     <main className="mx-auto max-w-5xl p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Gie≈Çda Agent√≥w AI</h1>
+        <h1 className="text-2xl font-semibold">Gie≥da AgentÛw AI</h1>
         <p className="text-sm opacity-80">
-          Katalog agent√≥w (Sprint 1): przeglƒÖd + karta agenta. Bez p≈Çatno≈õci w tym sprincie.
+          Katalog agentÛw (Sprint 1): przeglπd + karta agenta. Bez p≥atnoúci w tym sprincie.
         </p>
       </header>
 
@@ -38,18 +39,18 @@ export default function Home({
           <input
             id="q"
             name="q"
-            defaultValue={searchParams?.q ?? ""}
+            defaultValue={sp.q ?? ""}
             placeholder="np. oferta, CV, SEO..."
             className="mt-1 w-full rounded-md border px-3 py-2"
           />
         </div>
 
         <div className="sm:w-64">
-          <label className="text-sm opacity-80" htmlFor="cat">Bran≈ºa</label>
+          <label className="text-sm opacity-80" htmlFor="cat">Branøa</label>
           <select
             id="cat"
             name="cat"
-            defaultValue={searchParams?.cat ?? ""}
+            defaultValue={sp.cat ?? ""}
             className="mt-1 w-full rounded-md border px-3 py-2"
           >
             <option value="">Wszystkie</option>
@@ -82,13 +83,13 @@ export default function Home({
 
             <div className="mt-3 text-sm">
               {a.pricing.type === "free" && <span>Darmowy</span>}
-              {a.pricing.type === "one_time" && <span>{a.pricing.label}: {a.pricing.amountPln} z≈Ç</span>}
-              {a.pricing.type === "subscription" && <span>{a.pricing.label}: {a.pricing.amountPlnPerMonth} z≈Ç</span>}
+              {a.pricing.type === "one_time" && <span>{a.pricing.label}: {a.pricing.amountPln} z≥</span>}
+              {a.pricing.type === "subscription" && <span>{a.pricing.label}: {a.pricing.amountPlnPerMonth} z≥</span>}
             </div>
 
             <div className="mt-3">
               <Link className="text-sm underline underline-offset-4" href={`/agents/${a.slug}`}>
-                Zobacz kartƒô agenta ‚Üí
+                Zobacz kartÍ agenta õ
               </Link>
             </div>
           </article>
@@ -96,7 +97,7 @@ export default function Home({
       </section>
 
       {filtered.length === 0 && (
-        <p className="mt-6 text-sm opacity-80">Brak wynik√≥w dla podanych filtr√≥w.</p>
+        <p className="mt-6 text-sm opacity-80">Brak wynikÛw dla podanych filtrÛw.</p>
       )}
     </main>
   );
