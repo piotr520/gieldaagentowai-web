@@ -2,8 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AGENTS } from "../../../lib/agents";
 
-export default function AgentPage({ params }: { params: { slug: string } }) {
-  const agent = AGENTS.find(a => a.slug === params.slug);
+export default async function AgentPage({
+  params
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
+  const agent = AGENTS.find(a => a.slug === slug);
   if (!agent) return notFound();
 
   return (

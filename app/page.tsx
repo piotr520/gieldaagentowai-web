@@ -27,9 +27,9 @@ export default async function Home({
   return (
     <main className="mx-auto max-w-5xl p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Gie≥da AgentÛw AI</h1>
+        <h1 className="text-2xl font-semibold">Gie≈Çda Agent√≥w AI</h1>
         <p className="text-sm opacity-80">
-          Katalog agentÛw (Sprint 1): przeglπd + karta agenta. Bez p≥atnoúci w tym sprincie.
+          Katalog agent√≥w (Sprint 1): przeglƒÖd + karta agenta. Bez p≈Çatno≈õci w tym sprincie.
         </p>
       </header>
 
@@ -46,7 +46,7 @@ export default async function Home({
         </div>
 
         <div className="sm:w-64">
-          <label className="text-sm opacity-80" htmlFor="cat">Branøa</label>
+          <label className="text-sm opacity-80" htmlFor="cat">Bran≈ºa</label>
           <select
             id="cat"
             name="cat"
@@ -83,13 +83,13 @@ export default async function Home({
 
             <div className="mt-3 text-sm">
               {a.pricing.type === "free" && <span>Darmowy</span>}
-              {a.pricing.type === "one_time" && <span>{a.pricing.label}: {a.pricing.amountPln} z≥</span>}
-              {a.pricing.type === "subscription" && <span>{a.pricing.label}: {a.pricing.amountPlnPerMonth} z≥</span>}
+              {a.pricing.type === "one_time" && <span>{a.pricing.label}: {a.pricing.amountPln} z≈Ç</span>}
+              {a.pricing.type === "subscription" && <span>{a.pricing.label}: {a.pricing.amountPlnPerMonth} z≈Ç</span>}
             </div>
 
             <div className="mt-3">
               <Link className="text-sm underline underline-offset-4" href={`/agents/${a.slug}`}>
-                Zobacz kartÍ agenta õ
+                Zobacz kartƒô agenta ‚Üí
               </Link>
             </div>
           </article>
@@ -97,7 +97,7 @@ export default async function Home({
       </section>
 
       {filtered.length === 0 && (
-        <p className="mt-6 text-sm opacity-80">Brak wynikÛw dla podanych filtrÛw.</p>
+        <p className="mt-6 text-sm opacity-80">Brak wynik√≥w dla podanych filtr√≥w.</p>
       )}
     </main>
   );
