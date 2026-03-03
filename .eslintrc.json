@@ -1,4 +1,4 @@
 {
   "extends": ["next/core-web-vitals", "next/typescript"],
-  "ignorePatterns": ["prisma/seed.cjs", "prisma/*.db", "prisma/migrations/**"]
+  "ignorePatterns": ["prisma/seed.cjs", "prisma/*.db", "prisma/migrations/**", ".next/**"]
 }
