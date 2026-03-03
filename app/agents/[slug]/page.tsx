@@ -1,23 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AGENTS } from "../../../lib/agents";
+import { getPublishedAgentBySlug } from "../../../lib/agentRepo";
 
-export default async function AgentPage({
-  params
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+export default async function AgentPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  const agent = AGENTS.find(a => a.slug === slug);
+  const agent = await getPublishedAgentBySlug(slug);
   if (!agent) return notFound();
 
   return (
     <main className="mx-auto max-w-3xl p-6">
-      <div className="mb-4">
-        <Link className="text-sm underline underline-offset-4" href="/">
-          ← Wróć do katalogu
-        </Link>
+      <div className="mb-4 flex items-center justify-between">
+        <Link className="text-sm underline underline-offset-4" href="/">← Wróć do katalogu</Link>
+        <div className="text-sm flex gap-3">
+          <Link className="underline underline-offset-4" href="/dashboard">Panel twórcy</Link>
+        </div>
       </div>
 
       <header className="rounded-lg border p-4">
@@ -31,16 +28,8 @@ export default async function AgentPage({
 
         <div className="mt-3 text-sm">
           {agent.pricing.type === "free" && <span>Darmowy</span>}
-          {agent.pricing.type === "one_time" && (
-            <span>
-              {agent.pricing.label}: {agent.pricing.amountPln} zł
-            </span>
-          )}
-          {agent.pricing.type === "subscription" && (
-            <span>
-              {agent.pricing.label}: {agent.pricing.amountPlnPerMonth} zł
-            </span>
-          )}
+          {agent.pricing.type === "one_time" && <span>{agent.pricing.label}: {agent.pricing.amountPln} zł</span>}
+          {agent.pricing.type === "subscription" && <span>{agent.pricing.label}: {agent.pricing.amountPlnPerMonth} zł</span>}
         </div>
       </header>
 
@@ -52,9 +41,7 @@ export default async function AgentPage({
       <section className="mt-6">
         <h2 className="text-lg font-medium">Ograniczenia</h2>
         <ul className="mt-2 list-disc pl-6 text-sm opacity-80">
-          {agent.limitations.map((x, i) => (
-            <li key={i}>{x}</li>
-          ))}
+          {agent.limitations.map((x, i) => <li key={i}>{x}</li>)}
         </ul>
       </section>
 

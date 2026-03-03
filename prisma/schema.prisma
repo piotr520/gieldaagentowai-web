@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CREATOR
+}
+
+enum AgentStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  HIDDEN
+}
+
+enum PricingType {
+  FREE
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(CREATOR)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agents       Agent[]
+}
+
+model Agent {
+  id                     String      @id @default(cuid())
+  slug                   String      @unique
+  name                   String
+  tagline                String
+  category               String
+  pricingType            PricingType @default(FREE)
+  pricingLabel           String
+  pricingAmountPln       Int?
+  pricingAmountPlnPerMonth Int?
+  description            String
+  limitationsJson        String
+  examplesJson           String
+  status                 AgentStatus @default(DRAFT)
+  lastUpdated            String
+
+  creatorId              String
+  creator                User        @relation(fields: [creatorId], references: [id])
+
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+
+  @@index([status])
+  @@index([category])
+}
