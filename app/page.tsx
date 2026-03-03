@@ -1,14 +1,15 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { AGENTS } from "../lib/agents";
 import type { AgentCategory } from "../lib/types";
 
-export default function Home({
+export default async function Home({
   searchParams
 }: {
-  searchParams?: { q?: string; cat?: string };
+  searchParams?: Promise<{ q?: string; cat?: string }>;
 }) {
-  const q = (searchParams?.q ?? "").trim().toLowerCase();
-  const cat = (searchParams?.cat ?? "").trim();
+  const sp = searchParams ? await searchParams : {};
+  const q = (sp.q ?? "").trim().toLowerCase();
+  const cat = (sp.cat ?? "").trim();
 
   const categories = Array.from(new Set(AGENTS.map(a => a.category))).sort();
 
@@ -38,7 +39,7 @@ export default function Home({
           <input
             id="q"
             name="q"
-            defaultValue={searchParams?.q ?? ""}
+            defaultValue={sp.q ?? ""}
             placeholder="np. oferta, CV, SEO..."
             className="mt-1 w-full rounded-md border px-3 py-2"
           />
@@ -49,7 +50,7 @@ export default function Home({
           <select
             id="cat"
             name="cat"
-            defaultValue={searchParams?.cat ?? ""}
+            defaultValue={sp.cat ?? ""}
             className="mt-1 w-full rounded-md border px-3 py-2"
           >
             <option value="">Wszystkie</option>
