@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AGENTS } from "../lib/agents";
+import { getPublishedAgents } from "../lib/agentRepo";
 import type { AgentCategory } from "../lib/types";
 
 export default async function Home({
@@ -11,9 +11,10 @@ export default async function Home({
   const q = (sp.q ?? "").trim().toLowerCase();
   const cat = (sp.cat ?? "").trim();
 
-  const categories = Array.from(new Set(AGENTS.map(a => a.category))).sort();
+  const agents = await getPublishedAgents();
+  const categories = Array.from(new Set(agents.map(a => a.category))).sort();
 
-  const filtered = AGENTS.filter(a => {
+  const filtered = agents.filter(a => {
     const matchesQ =
       !q ||
       a.name.toLowerCase().includes(q) ||
@@ -26,10 +27,17 @@ export default async function Home({
 
   return (
     <main className="mx-auto max-w-5xl p-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Giełda Agentów AI</h1>
+      <header className="mb-4">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Giełda Agentów AI</h1>
+          <div className="text-sm flex gap-3">
+            <Link className="underline underline-offset-4" href="/login">Logowanie</Link>
+            <Link className="underline underline-offset-4" href="/dashboard">Panel twórcy</Link>
+            <Link className="underline underline-offset-4" href="/admin">Admin</Link>
+          </div>
+        </div>
         <p className="text-sm opacity-80">
-          Katalog agentów (Sprint 1): przegląd + karta agenta. Bez płatności w tym sprincie.
+          Sprint 2: konta + twórcy + statusy pending/published + admin approve.
         </p>
       </header>
 
@@ -97,7 +105,7 @@ export default async function Home({
       </section>
 
       {filtered.length === 0 && (
-        <p className="mt-6 text-sm opacity-80">Brak wyników dla podanych filtrów.</p>
+        <p className="mt-6 text-sm opacity-80">Brak wyników.</p>
       )}
     </main>
   );

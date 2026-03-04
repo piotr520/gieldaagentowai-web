@@ -1,4 +1,4 @@
-﻿name: CI (PR checks)
+name: CI (PR checks)
 
 on:
   pull_request:
@@ -10,6 +10,10 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: file:./ci.db
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ci_dummy_secret_32_bytes_minimum_123456
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,6 +26,9 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
 
       - name: Lint
         run: npm run lint
