@@ -5,19 +5,38 @@ import SignOutButton from "@/components/SignOutButton";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-async function requireAdmin() {
+type Role = "ADMIN" | "CREATOR";
+type SessionUser = { id: string; email: string | null; role: Role };
+
+function readSessionUser(session: unknown): SessionUser | null {
+  if (!session || typeof session !== "object") return null;
+  const s = session as { user?: unknown };
+  const u = s.user;
+  if (!u || typeof u !== "object") return null;
+  const uu = u as { id?: unknown; email?: unknown; role?: unknown };
+
+  if (typeof uu.id !== "string") return null;
+
+  const role = uu.role;
+  if (role !== "ADMIN" && role !== "CREATOR") return null;
+
+  const email = typeof uu.email === "string" ? uu.email : null;
+  return { id: uu.id, email, role };
+}
+
+async function requireAdmin(): Promise<SessionUser> {
   const session = await getSession();
-  if (!session?.user) redirect("/login");
-  const u = session.user as any;
-  if (u.role !== "ADMIN") redirect("/");
-  return session;
+  const user = readSessionUser(session);
+  if (!user) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/");
+  return user;
 }
 
 async function approveAction(formData: FormData) {
   "use server";
   const session = await getSession();
-  const u = session?.user as any;
-  if (!session?.user || u.role !== "ADMIN") return;
+  const user = readSessionUser(session);
+  if (!user || user.role !== "ADMIN") return;
 
   const id = String(formData.get("id") || "");
   if (!id) return;
@@ -34,8 +53,8 @@ async function approveAction(formData: FormData) {
 async function rejectAction(formData: FormData) {
   "use server";
   const session = await getSession();
-  const u = session?.user as any;
-  if (!session?.user || u.role !== "ADMIN") return;
+  const user = readSessionUser(session);
+  if (!user || user.role !== "ADMIN") return;
 
   const id = String(formData.get("id") || "");
   if (!id) return;
@@ -50,7 +69,7 @@ async function rejectAction(formData: FormData) {
 }
 
 export default async function AdminPage() {
-  const session = await requireAdmin();
+  const user = await requireAdmin();
 
   const pending = await prisma.agent.findMany({
     where: { status: "PENDING" },
@@ -68,7 +87,7 @@ export default async function AdminPage() {
   return (
     <main>
       <h1>Panel admina</h1>
-      <p>Zalogowany: {session.user.email}</p>
+      <p>Zalogowany: {user.email ?? "-"}</p>
       <SignOutButton />
 
       <h2>Do akceptacji (PENDING)</h2>
@@ -87,17 +106,11 @@ export default async function AdminPage() {
                 <form action={approveAction} style={{ display: "inline" }}>
                   <input type="hidden" name="id" value={a.id} />
                   <button type="submit">Approve → PUBLISHED</button>
-                </form>
-
-                {" "}
-
+                </form>{" "}
                 <form action={rejectAction} style={{ display: "inline" }}>
                   <input type="hidden" name="id" value={a.id} />
                   <button type="submit">Reject → HIDDEN</button>
-                </form>
-
-                {" "}
-
+                </form>{" "}
                 <Link href={`/agents/${a.slug}`}>Podgląd</Link>
               </div>
             </li>
