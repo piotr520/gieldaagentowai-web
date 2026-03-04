@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import SignOutButton from "@/components/SignOutButton";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +22,26 @@ function readSessionUser(session: unknown): SessionUser | null {
 
   const email = typeof uu.email === "string" ? uu.email : null;
   return { id: uu.id, email, role };
+}
+
+async function submitForApprovalAction(formData: FormData) {
+  "use server";
+  const session = await getSession();
+  const user = readSessionUser(session);
+  if (!user || user.role !== "CREATOR") return;
+
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+
+  // tylko właściciel + tylko DRAFT -> PENDING
+  await prisma.agent.updateMany({
+    where: { id, creatorId: user.id, status: "DRAFT" },
+    data: { status: "PENDING" }
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/admin");
+  revalidatePath("/");
 }
 
 export default async function DashboardPage() {
@@ -50,7 +71,16 @@ export default async function DashboardPage() {
         <ul>
           {agents.map((a) => (
             <li key={a.id}>
-              <strong>{a.name}</strong> — {a.status} — <Link href={`/agents/${a.slug}`}>Podgląd</Link>
+              <div>
+                <strong>{a.name}</strong> — {a.status} — <Link href={`/agents/${a.slug}`}>Podgląd</Link>
+              </div>
+
+              {a.status === "DRAFT" ? (
+                <form action={submitForApprovalAction} style={{ display: "inline" }}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <button type="submit">Wyślij do akceptacji → PENDING</button>
+                </form>
+              ) : null}
             </li>
           ))}
         </ul>
