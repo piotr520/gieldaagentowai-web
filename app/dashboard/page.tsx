@@ -63,6 +63,10 @@ export default async function DashboardPage() {
       <p>Zalogowany: {user.email ?? "-"}</p>
       <SignOutButton />
 
+      <p>
+        <Link href="/dashboard/new">+ Nowy agent</Link>
+      </p>
+
       <h2>Twoi agenci</h2>
 
       {agents.length === 0 ? (
