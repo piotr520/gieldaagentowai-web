@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 async function getTopAgents() {
   return prisma.agent.findMany({
     where: { status: "PUBLISHED" },
