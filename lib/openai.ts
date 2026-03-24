@@ -1,8 +1,13 @@
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let _client: OpenAI | null = null;
+
+function getClient(): OpenAI {
+  if (!_client) {
+    _client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _client;
+}
 
 export async function generateOffer(input: {
   agentName: string;
@@ -32,7 +37,7 @@ Cena: ${input.cena}
 Termin: ${input.termin}
 `;
 
-  const completion = await client.chat.completions.create({
+  const completion = await getClient().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       { role: "system", content: "Jesteś ekspertem sprzedaży B2B." },
