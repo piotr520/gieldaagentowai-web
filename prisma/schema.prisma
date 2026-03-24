@@ -34,30 +34,50 @@ model User {
   updatedAt    DateTime @updatedAt
 
   agents       Agent[]
+  agentRuns    AgentRun[]
 }
 
 model Agent {
-  id                     String      @id @default(cuid())
-  slug                   String      @unique
-  name                   String
-  tagline                String
-  category               String
-  pricingType            PricingType @default(FREE)
-  pricingLabel           String
-  pricingAmountPln       Int?
+  id                       String      @id @default(cuid())
+  slug                     String      @unique
+  name                     String
+  tagline                  String
+  category                 String
+  pricingType              PricingType @default(FREE)
+  pricingLabel             String
+  pricingAmountPln         Int?
   pricingAmountPlnPerMonth Int?
-  description            String
-  limitationsJson        String
-  examplesJson           String
-  status                 AgentStatus @default(DRAFT)
-  lastUpdated            String
+  description              String
+  limitationsJson          String
+  examplesJson             String
+  status                   AgentStatus @default(DRAFT)
+  lastUpdated              String
+  runsCount                Int         @default(0)
 
-  creatorId              String
-  creator                User        @relation(fields: [creatorId], references: [id])
+  creatorId                String
+  creator                  User        @relation(fields: [creatorId], references: [id])
 
-  createdAt              DateTime    @default(now())
-  updatedAt              DateTime    @updatedAt
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  runs                     AgentRun[]
 
   @@index([status])
   @@index([category])
+}
+
+model AgentRun {
+  id         String   @id @default(cuid())
+  agentId    String
+  userId     String?
+  inputJson  String
+  outputText String
+  createdAt  DateTime @default(now())
+
+  agent      Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([createdAt])
 }
