@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  CREATOR
+  ADMIN
+}
+
+enum AgentStatus {
+  DRAFT
+  PENDING
+  PUBLISHED
+  HIDDEN
+  REJECTED
+}
+
+enum PricingType {
+  FREE
+  ONE_TIME
+  SUBSCRIPTION
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agents       Agent[]
+  agentRuns    AgentRun[]
+  agentAccess  AgentAccess[]
+}
+
+model Agent {
+  id                       String      @id @default(cuid())
+  slug                     String      @unique
+  name                     String
+  tagline                  String
+  category                 String
+  pricingType              PricingType @default(FREE)
+  pricingLabel             String
+  pricingAmountPln         Int?
+  pricingAmountPlnPerMonth Int?
+  description              String
+  limitationsJson          String
+  examplesJson             String
+  status                   AgentStatus @default(DRAFT)
+  lastUpdated              String
+  runsCount                Int         @default(0)
+
+  creatorId                String
+  creator                  User        @relation(fields: [creatorId], references: [id])
+
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  runs                     AgentRun[]
+  access                   AgentAccess[]
+
+  @@index([status])
+  @@index([category])
+}
+
+model AgentRun {
+  id         String   @id @default(cuid())
+  agentId    String
+  userId     String?
+  inputJson  String
+  outputText String
+  createdAt  DateTime @default(now())
+
+  agent      Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model AgentAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  agentId   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentId])
+  @@index([userId])
+  @@index([agentId])
+}
