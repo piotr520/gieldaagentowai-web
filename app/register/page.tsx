@@ -2,53 +2,47 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useRouter } from "next/navigation";
 
-function LoginForm() {
+export default function RegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const registered = searchParams.get("registered") === "1";
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (password !== password2) {
+      setError("Hasła nie są identyczne.");
+      return;
+    }
+
     setLoading(true);
 
-    const res = await signIn("credentials", { email, password, redirect: false });
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-    if (!res || res.error) {
-      setError("Nieprawidłowy email lub hasło.");
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error ?? "Błąd rejestracji.");
       setLoading(false);
       return;
     }
 
-    // Pobierz sesję żeby sprawdzić rolę
-    const session = await fetch("/api/auth/session").then((r) => r.json());
-    const role = session?.user?.role;
-
-    if (role === "ADMIN") router.push("/admin");
-    else if (role === "CREATOR") router.push("/dashboard");
-    else router.push("/");
-
-    router.refresh();
+    router.push("/login?registered=1");
   }
 
   return (
     <main>
-      <h1>Logowanie</h1>
-
-      {registered ? (
-        <p style={{ color: "green" }}>
-          Konto zostało utworzone. Możesz się zalogować.
-        </p>
-      ) : null}
+      <h1>Rejestracja</h1>
 
       <form onSubmit={onSubmit}>
         <div>
@@ -66,12 +60,26 @@ function LoginForm() {
 
         <div>
           <label>
-            Hasło<br />
+            Hasło (min. 8 znaków)<br />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+          </label>
+        </div>
+
+        <div>
+          <label>
+            Powtórz hasło<br />
+            <input
+              type="password"
+              value={password2}
+              onChange={(e) => setPassword2(e.target.value)}
+              autoComplete="new-password"
               required
             />
           </label>
@@ -79,7 +87,7 @@ function LoginForm() {
 
         <div>
           <button type="submit" disabled={loading}>
-            {loading ? "Logowanie..." : "Zaloguj"}
+            {loading ? "Rejestracja..." : "Zarejestruj się"}
           </button>
         </div>
 
@@ -87,19 +95,11 @@ function LoginForm() {
       </form>
 
       <p>
-        Nie masz konta? <Link href="/register">Zarejestruj się</Link>
+        Masz już konto? <Link href="/login">Zaloguj się</Link>
       </p>
       <p>
         <Link href="/">Powrót do strony głównej</Link>
       </p>
     </main>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
   );
 }
