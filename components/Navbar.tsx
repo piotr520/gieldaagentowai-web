@@ -43,7 +43,9 @@ export default function Navbar() {
                   Dashboard
                 </Link>
               )}
-              <span className="text-neutral-400">{session.user.email}</span>
+              <Link href="/account" className="text-neutral-600 hover:text-neutral-900">
+                Moje konto
+              </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
                 className="text-neutral-600 hover:text-neutral-900"
