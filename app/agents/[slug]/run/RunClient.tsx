@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 type RunItem = {
   id: string;
@@ -16,6 +17,7 @@ type AgentState = {
   freeLimit: number;
   usedFreeRuns: number;
   remainingFreeRuns: number;
+  isAuthenticated: boolean;
   latestRuns: RunItem[];
 };
 
@@ -26,6 +28,7 @@ type Props = {
 };
 
 export default function RunClient({ slug, agentName, agentTagline }: Props) {
+  const { status: authStatus } = useSession();
   const [input, setInput] = useState("");
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
@@ -48,9 +51,9 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
   }
 
   useEffect(() => {
-    fetchState();
+    if (authStatus !== "loading") fetchState();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, authStatus]);
 
   async function handleRun() {
     if (inFlight.current || loading || loadingState) return;
@@ -101,93 +104,118 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
         ) : null}
       </div>
 
-      {/* Licznik użyć */}
-      <div className="rounded border border-neutral-300 bg-neutral-50 p-4">
-        {loadingState ? (
-          <p className="text-sm text-neutral-500">Ładowanie stanu...</p>
-        ) : state ? (
-          <>
-            <p className="text-sm font-medium">
-              Darmowe użycia: {state.usedFreeRuns} / {state.freeLimit}
-            </p>
-            <p className="mt-1 text-sm text-neutral-600">
-              Pozostało: {state.remainingFreeRuns}
-            </p>
-            {limitExhausted ? (
-              <p className="mt-2 text-sm font-semibold text-red-600">
-                Limit darmowych użyć wyczerpany. Wkrótce dostępny zakup dostępu.
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-sm text-red-500">Nie udało się pobrać stanu agenta.</p>
-        )}
-      </div>
-
-      {/* Formularz */}
-      <div className="space-y-3">
-        <label className="block text-sm font-medium">Twoje zapytanie</label>
-        <textarea
-          className="w-full rounded border border-neutral-300 p-3 text-sm"
-          rows={5}
-          placeholder="Opisz zadanie dla agenta..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={loading || loadingState || limitExhausted}
-        />
-        <button
-          onClick={handleRun}
-          disabled={loading || loadingState || limitExhausted}
-          className="rounded border border-neutral-800 bg-neutral-900 px-5 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? "Uruchamianie..." : "Uruchom agenta"}
-        </button>
-      </div>
-
-      {error ? (
-        <div className="rounded border border-red-300 bg-red-50 p-4 text-sm text-red-700">
-          {error}
+      {/* Niezalogowany */}
+      {authStatus === "unauthenticated" ? (
+        <div className="rounded border border-neutral-300 bg-neutral-50 p-6 text-center">
+          <p className="mb-4 text-sm font-medium">
+            Zaloguj się, aby uruchomić agenta.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Link
+              href={`/login?callbackUrl=/agents/${slug}/run`}
+              className="rounded bg-neutral-900 px-4 py-2 text-sm text-white hover:bg-neutral-700"
+            >
+              Zaloguj się
+            </Link>
+            <Link
+              href="/register"
+              className="rounded border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-50"
+            >
+              Zarejestruj się za darmo
+            </Link>
+          </div>
         </div>
-      ) : null}
-
-      {/* Wynik */}
-      {result ? (
-        <section>
-          <h2 className="mb-2 text-lg font-semibold">Wynik</h2>
-          <div className="whitespace-pre-wrap rounded border border-neutral-200 bg-neutral-50 p-4 text-sm">
-            {result}
-          </div>
-        </section>
-      ) : null}
-
-      {/* Historia */}
-      <section>
-        <h2 className="mb-3 text-lg font-semibold">Historia uruchomień</h2>
-        {loadingState ? (
-          <p className="text-sm text-neutral-500">Ładowanie historii...</p>
-        ) : !state || state.latestRuns.length === 0 ? (
-          <p className="text-sm text-neutral-500">Brak uruchomień.</p>
-        ) : (
-          <div className="space-y-3">
-            {state.latestRuns.map((run, i) => (
-              <article key={run.id} className="rounded border border-neutral-200 p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-medium text-neutral-500">
-                    #{state.latestRuns.length - i}
-                  </span>
-                  <span className="text-xs text-neutral-400">{run.createdAt}</span>
-                </div>
-                <p className="mb-2 text-sm font-medium text-neutral-700">
-                  Zapytanie: {run.input}
+      ) : (
+        <>
+          {/* Licznik użyć */}
+          <div className="rounded border border-neutral-300 bg-neutral-50 p-4">
+            {loadingState ? (
+              <p className="text-sm text-neutral-500">Ładowanie stanu...</p>
+            ) : state ? (
+              <>
+                <p className="text-sm font-medium">
+                  Twoje darmowe użycia: {state.usedFreeRuns} / {state.freeLimit}
                 </p>
-                <div className="whitespace-pre-wrap rounded bg-neutral-50 p-3 text-sm text-neutral-800">
-                  {run.output}
-                </div>
-              </article>
-            ))}
+                <p className="mt-1 text-sm text-neutral-600">
+                  Pozostało: {state.remainingFreeRuns}
+                </p>
+                {limitExhausted ? (
+                  <p className="mt-2 text-sm font-semibold text-red-600">
+                    Limit darmowych użyć wyczerpany. Wkrótce dostępny zakup dostępu.
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-sm text-red-500">Nie udało się pobrać stanu agenta.</p>
+            )}
           </div>
-        )}
-      </section>
+
+          {/* Formularz */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium">Twoje zapytanie</label>
+            <textarea
+              className="w-full rounded border border-neutral-300 p-3 text-sm"
+              rows={5}
+              placeholder="Opisz zadanie dla agenta..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={loading || loadingState || limitExhausted}
+            />
+            <button
+              onClick={handleRun}
+              disabled={loading || loadingState || limitExhausted}
+              className="rounded border border-neutral-800 bg-neutral-900 px-5 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? "Uruchamianie..." : "Uruchom agenta"}
+            </button>
+          </div>
+
+          {error ? (
+            <div className="rounded border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
+
+          {/* Wynik */}
+          {result ? (
+            <section>
+              <h2 className="mb-2 text-lg font-semibold">Wynik</h2>
+              <div className="whitespace-pre-wrap rounded border border-neutral-200 bg-neutral-50 p-4 text-sm">
+                {result}
+              </div>
+            </section>
+          ) : null}
+
+          {/* Historia */}
+          <section>
+            <h2 className="mb-3 text-lg font-semibold">Twoja historia uruchomień</h2>
+            {loadingState ? (
+              <p className="text-sm text-neutral-500">Ładowanie historii...</p>
+            ) : !state || state.latestRuns.length === 0 ? (
+              <p className="text-sm text-neutral-500">Brak uruchomień.</p>
+            ) : (
+              <div className="space-y-3">
+                {state.latestRuns.map((run, i) => (
+                  <article key={run.id} className="rounded border border-neutral-200 p-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-medium text-neutral-500">
+                        #{state.latestRuns.length - i}
+                      </span>
+                      <span className="text-xs text-neutral-400">{run.createdAt}</span>
+                    </div>
+                    <p className="mb-2 text-sm font-medium text-neutral-700 line-clamp-2">
+                      {run.input}
+                    </p>
+                    <div className="whitespace-pre-wrap rounded bg-neutral-50 p-3 text-sm text-neutral-800 line-clamp-4">
+                      {run.output}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </main>
   );
 }
