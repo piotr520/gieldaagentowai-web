@@ -19,9 +19,7 @@ const seedAgents = [
       "Wymaga podania branży, zakresu i ceny, aby wynik miał sens."
     ],
     examples: [
-      { input: "Branża: ogrodzenia. Usługa: montaż 120m paneli 3D. Cena: 18 500 zł. Termin: 2 tygodnie.", output: "Oferta: Montaż ogrodzenia panelowego 3D (120 m) – zakres prac, materiały, harmonogram 2 tyg., cena 18 500 zł, warunki płatności, gwarancja, CTA." },
-      { input: "Usługa: projekt + wykonanie strony wizytówki. Cena: 3 900 zł. Czas: 10 dni.", output: "Oferta: Strona wizytówka – etapy (brief, makieta, wdrożenie), termin 10 dni, cena 3 900 zł, warunki, CTA." },
-      { input: "Transport: trasa Gubin → Cottbus, 2 palety, termin jutro, cena 450 zł.", output: "Oferta transportu: parametry ładunku, trasa, termin, cena 450 zł, zasady załadunku/rozładunku, kontakt." }
+      { input: "Branża: ogrodzenia. Usługa: montaż 120m paneli 3D. Cena: 18 500 zł. Termin: 2 tygodnie.", output: "Oferta: Montaż ogrodzenia panelowego 3D (120 m) – zakres prac, materiały, harmonogram 2 tyg., cena 18 500 zł, warunki płatności, gwarancja, CTA." }
     ]
   }
 ];
@@ -29,9 +27,13 @@ const seedAgents = [
 async function main() {
   const adminEmail = "admin@gaai.local";
   const creatorEmail = "creator@gaai.local";
+  const userEmail = "user@gaai.local";
 
-  const adminPass = await bcrypt.hash("Admin123!", 10);
-  const creatorPass = await bcrypt.hash("Creator123!", 10);
+  const [adminPass, creatorPass, userPass] = await Promise.all([
+    bcrypt.hash("Admin123!", 10),
+    bcrypt.hash("Creator123!", 10),
+    bcrypt.hash("User123!", 10),
+  ]);
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
@@ -43,6 +45,12 @@ async function main() {
     where: { email: creatorEmail },
     update: {},
     create: { email: creatorEmail, passwordHash: creatorPass, role: "CREATOR" }
+  });
+
+  await prisma.user.upsert({
+    where: { email: userEmail },
+    update: {},
+    create: { email: userEmail, passwordHash: userPass, role: "USER" }
   });
 
   for (const a of seedAgents) {
@@ -62,7 +70,7 @@ async function main() {
         limitationsJson: JSON.stringify(a.limitations),
         examplesJson: JSON.stringify(a.examples),
         status: "PUBLISHED",
-        lastUpdated: "2026-03-03",
+        lastUpdated: "2026-03-25",
         creatorId: creator.id
       }
     });
@@ -71,6 +79,7 @@ async function main() {
   console.log("Seed OK");
   console.log("ADMIN:", adminEmail, "pass: Admin123!");
   console.log("CREATOR:", creatorEmail, "pass: Creator123!");
+  console.log("USER:", userEmail, "pass: User123!");
 }
 
 main()

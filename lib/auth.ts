@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth/next";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
-type Role = "ADMIN" | "CREATOR";
+export type Role = "USER" | "CREATOR" | "ADMIN";
 type AuthUser = { id: string; email: string; role: Role };
 
 export const authOptions: NextAuthOptions = {
@@ -27,8 +27,7 @@ export const authOptions: NextAuthOptions = {
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
-        const u: AuthUser = { id: user.id, email: user.email, role: user.role as Role };
-        return u;
+        return { id: user.id, email: user.email, role: user.role as Role };
       }
     })
   ],

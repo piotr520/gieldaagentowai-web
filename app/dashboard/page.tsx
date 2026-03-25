@@ -5,7 +5,7 @@ import SignOutButton from "@/components/SignOutButton";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-type Role = "ADMIN" | "CREATOR";
+type Role = "USER" | "CREATOR" | "ADMIN";
 type SessionUser = { id: string; email: string | null; role: Role };
 
 function readSessionUser(session: unknown): SessionUser | null {
@@ -18,7 +18,7 @@ function readSessionUser(session: unknown): SessionUser | null {
   if (typeof uu.id !== "string") return null;
 
   const role = uu.role;
-  if (role !== "ADMIN" && role !== "CREATOR") return null;
+  if (role !== "USER" && role !== "CREATOR" && role !== "ADMIN") return null;
 
   const email = typeof uu.email === "string" ? uu.email : null;
   return { id: uu.id, email, role };
@@ -50,6 +50,7 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
   if (user.role === "ADMIN") redirect("/admin");
+  if (user.role === "USER") redirect("/");
 
   const agents = await prisma.agent.findMany({
     where: { creatorId: user.id },
