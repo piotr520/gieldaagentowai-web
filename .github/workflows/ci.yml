@@ -10,10 +10,27 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: gaai_ci
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     env:
-      DATABASE_URL: file:./ci.db
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/gaai_ci
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ci_dummy_secret_32_bytes_minimum_123456
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,6 +46,9 @@ jobs:
 
       - name: Prisma generate
         run: npx prisma generate
+
+      - name: Prisma migrate deploy
+        run: npx prisma migrate deploy
 
       - name: Lint
         run: npm run lint
