@@ -37,6 +37,7 @@ model User {
 
   agents       Agent[]
   agentRuns    AgentRun[]
+  agentAccess  AgentAccess[]
 }
 
 model Agent {
@@ -63,6 +64,7 @@ model Agent {
   updatedAt                DateTime    @updatedAt
 
   runs                     AgentRun[]
+  access                   AgentAccess[]
 
   @@index([status])
   @@index([category])
@@ -82,4 +84,18 @@ model AgentRun {
   @@index([agentId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model AgentAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  agentId   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentId])
+  @@index([userId])
+  @@index([agentId])
 }
