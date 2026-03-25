@@ -15,18 +15,30 @@ type RunItem = {
 async function getAgentState(agentSlug: string, userId: string | null) {
   const agent = await prisma.agent.findUnique({
     where: { slug: agentSlug },
-    select: { id: true, slug: true, name: true, description: true, runsCount: true },
+    select: {
+      id: true, slug: true, name: true, description: true,
+      runsCount: true, pricingType: true, pricingLabel: true,
+      pricingAmountPln: true, pricingAmountPlnPerMonth: true,
+    },
   });
 
   if (!agent) return null;
 
-  // Limit per użytkownik (jeśli zalogowany), globalny tylko jako fallback
+  const hasAccess = userId
+    ? !!(await prisma.agentAccess.findUnique({
+        where: { userId_agentId: { userId, agentId: agent.id } },
+      }))
+    : false;
+
+  const isFree = agent.pricingType === "FREE";
+
   const userRunCount = userId
     ? await prisma.agentRun.count({ where: { agentId: agent.id, userId } })
     : 0;
 
   const usedFreeRuns = userId ? Math.min(userRunCount, FREE_LIMIT) : 0;
-  const remainingFreeRuns = userId ? Math.max(0, FREE_LIMIT - userRunCount) : FREE_LIMIT;
+  const remainingFreeRuns =
+    hasAccess || isFree ? FREE_LIMIT : Math.max(0, FREE_LIMIT - userRunCount);
 
   const latestRuns = await prisma.agentRun.findMany({
     where: { agentId: agent.id, ...(userId ? { userId } : {}) },
@@ -46,9 +58,14 @@ async function getAgentState(agentSlug: string, userId: string | null) {
     agentId: agent.id,
     agentName: agent.name,
     agentDescription: agent.description,
+    pricingType: agent.pricingType,
+    pricingLabel: agent.pricingLabel,
+    pricingAmountPln: agent.pricingAmountPln,
+    pricingAmountPlnPerMonth: agent.pricingAmountPlnPerMonth,
     freeLimit: FREE_LIMIT,
     usedFreeRuns,
     remainingFreeRuns,
+    hasAccess,
     latestRuns: runs,
   };
 }
@@ -61,8 +78,8 @@ export async function GET(req: NextRequest) {
 
   const session = await getSession();
   const userId = session?.user?.id ?? null;
-
   const state = await getAgentState(agentSlug, userId);
+
   if (!state) {
     return NextResponse.json({ error: "Nie znaleziono agenta." }, { status: 404 });
   }
@@ -92,24 +109,33 @@ export async function POST(req: Request) {
 
     const agent = await prisma.agent.findUnique({
       where: { slug: agentSlug },
-      select: { id: true, name: true, description: true, status: true },
+      select: { id: true, name: true, description: true, status: true, pricingType: true },
     });
 
     if (!agent || agent.status !== "PUBLISHED") {
       return NextResponse.json({ error: "Nie znaleziono agenta." }, { status: 404 });
     }
 
-    // Sprawdź limit per użytkownik
-    const userRunCount = await prisma.agentRun.count({
-      where: { agentId: agent.id, userId },
-    });
+    const isFree = agent.pricingType === "FREE";
 
-    if (userRunCount >= FREE_LIMIT) {
-      const state = await getAgentState(agentSlug, userId);
-      return NextResponse.json(
-        { error: "Limit darmowych użyć został wyczerpany.", ...state, isAuthenticated: true },
-        { status: 403 }
-      );
+    const hasAccess = isFree
+      ? true
+      : !!(await prisma.agentAccess.findUnique({
+          where: { userId_agentId: { userId, agentId: agent.id } },
+        }));
+
+    if (!hasAccess) {
+      const userRunCount = await prisma.agentRun.count({
+        where: { agentId: agent.id, userId },
+      });
+
+      if (userRunCount >= FREE_LIMIT) {
+        const state = await getAgentState(agentSlug, userId);
+        return NextResponse.json(
+          { error: "Limit darmowych użyć wyczerpany.", ...state, isAuthenticated: true },
+          { status: 403 }
+        );
+      }
     }
 
     const result = await runAgent({
