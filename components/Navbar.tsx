@@ -2,48 +2,31 @@
 
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
-import { useState } from "react";
 
 export default function Navbar() {
   const { data: session } = useSession();
   const role = session?.user?.role;
-  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" fill="white" />
-            </svg>
-          </div>
-          <span className="text-sm font-semibold text-slate-900 tracking-tight">
-            Giełda Agentów AI
-          </span>
+    <header className="border-b border-neutral-200 bg-white">
+      <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+        <Link href="/" className="text-lg font-bold tracking-tight">
+          Giełda Agentów AI
         </Link>
 
-        {/* Center links */}
-        <div className="hidden items-center gap-6 md:flex">
-          <Link href="/agents" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
-            Marketplace
+        <div className="flex items-center gap-4 text-sm">
+          <Link href="/agents" className="text-neutral-600 hover:text-neutral-900">
+            Agenci
           </Link>
-        </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-2">
           {!session ? (
             <>
-              <Link
-                href="/login"
-                className="hidden rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors md:block"
-              >
-                Zaloguj się
+              <Link href="/login" className="text-neutral-600 hover:text-neutral-900">
+                Zaloguj
               </Link>
               <Link
                 href="/register"
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
+                className="rounded bg-neutral-900 px-3 py-1.5 text-white hover:bg-neutral-700"
               >
                 Zarejestruj się
               </Link>
@@ -51,69 +34,28 @@ export default function Navbar() {
           ) : (
             <>
               {role === "ADMIN" && (
-                <Link
-                  href="/admin"
-                  className="hidden rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 transition-colors md:block"
-                >
-                  Admin
+                <Link href="/admin" className="text-neutral-600 hover:text-neutral-900">
+                  Panel admina
                 </Link>
               )}
               {role === "CREATOR" && (
-                <Link
-                  href="/dashboard"
-                  className="hidden rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 transition-colors md:block"
-                >
+                <Link href="/dashboard" className="text-neutral-600 hover:text-neutral-900">
                   Dashboard
                 </Link>
               )}
-              <Link
-                href="/account"
-                className="hidden rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 transition-colors md:block"
-              >
+              <Link href="/account" className="text-neutral-600 hover:text-neutral-900">
                 Moje konto
               </Link>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+                className="text-neutral-600 hover:text-neutral-900"
               >
                 Wyloguj
               </button>
             </>
           )}
-
-          {/* Mobile menu toggle */}
-          <button
-            className="ml-1 flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 md:hidden"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
         </div>
       </nav>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div className="border-t border-slate-200 bg-white px-6 py-4 md:hidden">
-          <div className="flex flex-col gap-3 text-sm text-slate-700">
-            <Link href="/agents" onClick={() => setMenuOpen(false)}>Marketplace</Link>
-            {!session ? (
-              <>
-                <Link href="/login" onClick={() => setMenuOpen(false)}>Zaloguj się</Link>
-                <Link href="/register" onClick={() => setMenuOpen(false)}>Zarejestruj się</Link>
-              </>
-            ) : (
-              <>
-                <Link href="/account" onClick={() => setMenuOpen(false)}>Moje konto</Link>
-                {role === "CREATOR" && <Link href="/dashboard" onClick={() => setMenuOpen(false)}>Dashboard</Link>}
-                {role === "ADMIN" && <Link href="/admin" onClick={() => setMenuOpen(false)}>Admin</Link>}
-                <button onClick={() => signOut({ callbackUrl: "/" })} className="text-left">Wyloguj</button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </header>
   );
 }
