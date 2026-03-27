@@ -8,7 +8,7 @@ export type Role = "USER" | "CREATOR" | "ADMIN";
 type AuthUser = { id: string; email: string; role: Role };
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   providers: [
     CredentialsProvider({
       name: "Credentials",
