@@ -183,7 +183,14 @@ export default async function DashboardPage() {
                         Podgląd
                       </Link>
                       {(agent.status === "DRAFT" || agent.status === "REJECTED") && (
-                        <form action={submitForApprovalAction}>
+                        <>
+                          <Link
+                            href={`/dashboard/${agent.slug}/edit`}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                          >
+                            Edytuj
+                          </Link>
+                          <form action={submitForApprovalAction}>
                           <input type="hidden" name="id" value={agent.id} />
                           <button
                             type="submit"
@@ -195,7 +202,8 @@ export default async function DashboardPage() {
                           >
                             {isRejected ? "Wyślij ponownie →" : "Wyślij do akceptacji →"}
                           </button>
-                        </form>
+                          </form>
+                        </>
                       )}
                     </div>
                   </div>
