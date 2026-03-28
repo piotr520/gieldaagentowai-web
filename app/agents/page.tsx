@@ -10,13 +10,12 @@ type AgentListItem = {
   category: string;
   tagline: string | null;
   pricingLabel: string | null;
-  pricingType: string;
   updatedAt: Date;
   runsCount: number;
 };
 
 async function getPublishedAgents(): Promise<AgentListItem[]> {
-  return prisma.agent.findMany({
+  const rows = await prisma.agent.findMany({
     where: { status: "PUBLISHED" },
     select: {
       id: true,
@@ -25,93 +24,81 @@ async function getPublishedAgents(): Promise<AgentListItem[]> {
       category: true,
       tagline: true,
       pricingLabel: true,
-      pricingType: true,
       updatedAt: true,
       runsCount: true,
     },
     orderBy: [{ runsCount: "desc" }, { updatedAt: "desc" }],
   });
+
+  return rows;
 }
 
 export default async function AgentsPage() {
   const agents = await getPublishedAgents();
 
-  const categories = Array.from(new Set(agents.map((a) => a.category))).sort();
-
   return (
-    <main className="mx-auto max-w-6xl px-6 py-12">
-      {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold text-slate-900">Marketplace agentów</h1>
-        <p className="mt-2 text-slate-500">
-          {agents.length} {agents.length === 1 ? "agent" : "agentów"} gotowych do użycia
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Katalog agentów AI</h1>
+        <p className="mt-2 text-sm text-neutral-600">
+          Przeglądaj opublikowanych agentów i przechodź do ich kart.
         </p>
       </div>
 
-      {/* Category pills */}
-      {categories.length > 0 && (
-        <div className="mb-8 flex flex-wrap gap-2">
-          {categories.map((cat) => (
-            <span
-              key={cat}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 shadow-sm"
-            >
-              {cat}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Grid */}
       {agents.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 p-16 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-2xl">
-            🤖
-          </div>
-          <p className="font-medium text-slate-700">Brak opublikowanych agentów</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Gdy agent otrzyma status PUBLISHED, pojawi się tutaj.
+        <div className="rounded-xl border border-neutral-300 p-6">
+          <p className="text-base font-medium">Brak opublikowanych agentów.</p>
+          <p className="mt-2 text-sm text-neutral-600">
+            Gdy agent otrzyma status PUBLISHED, pojawi się tutaj w katalogu.
           </p>
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4">
           {agents.map((agent, index) => (
             <article
               key={agent.id}
-              className="group relative flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-indigo-300 hover:shadow-md"
+              className="rounded-xl border border-neutral-300 p-5"
             >
-              {index === 0 && (
-                <span className="absolute right-4 top-4 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                  🔥 Popularny
-                </span>
-              )}
-
-              <div>
-                <div className="mb-4 flex items-center gap-2">
-                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+              <div className="mb-2 flex items-start justify-between gap-4">
+                <div>
+                  <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">
                     {agent.category}
-                  </span>
+                  </div>
+
+                  <h2 className="flex items-center gap-2 text-xl font-semibold">
+                    {agent.name}
+                    {index === 0 ? (
+                      <span className="rounded bg-black px-2 py-1 text-xs text-white">
+                        🔥 Najpopularniejszy
+                      </span>
+                    ) : null}
+                  </h2>
                 </div>
-                <h2 className="text-base font-semibold text-slate-900">{agent.name}</h2>
-                <p className="mt-2 text-sm text-slate-500 line-clamp-2">
-                  {agent.tagline ?? "Brak opisu."}
-                </p>
+
+                <div className="shrink-0 text-sm font-medium">
+                  {agent.pricingLabel ?? "Cena do ustalenia"}
+                </div>
               </div>
 
-              <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
-                <div className="flex flex-col gap-0.5">
-                  <span className={`text-xs font-semibold ${
-                    agent.pricingType === "FREE" ? "text-green-700" : "text-indigo-700"
-                  }`}>
-                    {agent.pricingLabel ?? "—"}
-                  </span>
-                  <span className="text-xs text-slate-400">⚡ {agent.runsCount} uruchomień</span>
+              <p className="mb-2 text-sm text-neutral-700">
+                {agent.tagline ?? "Brak krótkiego opisu."}
+              </p>
+
+              <div className="mb-3 text-xs text-neutral-500">
+                Użycia: {agent.runsCount}
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <div className="text-xs text-neutral-500">
+                  Aktualizacja:{" "}
+                  {new Date(agent.updatedAt).toLocaleDateString("pl-PL")}
                 </div>
+
                 <Link
                   href={`/agents/${agent.slug}`}
-                  className="rounded-lg bg-slate-900 px-4 py-1.5 text-xs font-medium text-white transition-colors group-hover:bg-indigo-600"
+                  className="text-sm font-medium underline"
                 >
-                  Zobacz →
+                  Zobacz agenta
                 </Link>
               </div>
             </article>

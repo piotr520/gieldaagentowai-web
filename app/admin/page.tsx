@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import SignOutButton from "@/components/SignOutButton";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -48,125 +47,133 @@ async function rejectAction(formData: FormData) {
   if (!user || user.role !== "ADMIN") return;
   const id = String(formData.get("id") || "");
   if (!id) return;
-  await prisma.agent.update({ where: { id }, data: { status: "HIDDEN" } });
+  await prisma.agent.update({ where: { id }, data: { status: "REJECTED" } });
   revalidatePath("/admin");
+  revalidatePath("/dashboard");
   revalidatePath("/");
 }
 
 export default async function AdminPage() {
   const user = await requireAdmin();
 
-  const pending = await prisma.agent.findMany({
-    where: { status: "PENDING" },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true, name: true, slug: true, category: true, createdAt: true,
-      creator: { select: { email: true } },
-    },
-  });
+  const [pending, allAgents, allUsers] = await Promise.all([
+    prisma.agent.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true, name: true, slug: true, category: true,
+        tagline: true, createdAt: true, creator: { select: { email: true } },
+      },
+    }),
+    prisma.agent.count(),
+    prisma.user.count(),
+  ]);
 
-  const stats = await prisma.agent.groupBy({
-    by: ["status"],
-    _count: { id: true },
-  });
-
-  const statsMap = Object.fromEntries(stats.map((s) => [s.status, s._count.id]));
+  const published = await prisma.agent.count({ where: { status: "PUBLISHED" } });
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-6 py-10">
       {/* Header */}
-      <div className="mb-10 flex items-start justify-between">
+      <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Panel admina</h1>
-          <p className="mt-1 text-sm text-slate-500">{user.email}</p>
+          <h1 className="text-2xl font-bold text-slate-900">Panel administracyjny</h1>
+          <p className="mt-1 text-sm text-slate-500">{user.email ?? "-"}</p>
         </div>
-        <SignOutButton />
+        <Link
+          href="/"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+        >
+          ← Katalog
+        </Link>
       </div>
 
       {/* Stats */}
-      <div className="mb-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: "Opublikowane", key: "PUBLISHED", color: "text-green-600" },
-          { label: "Oczekujące", key: "PENDING", color: "text-amber-600" },
-          { label: "Szkice", key: "DRAFT", color: "text-slate-600" },
-          { label: "Ukryte", key: "HIDDEN", color: "text-red-600" },
-        ].map((s) => (
-          <div key={s.key} className="rounded-2xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500">{s.label}</p>
-            <p className={`mt-1 text-2xl font-bold ${s.color}`}>{statsMap[s.key] ?? 0}</p>
-          </div>
-        ))}
+      <div className="mb-8 grid gap-4 sm:grid-cols-4">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <p className="text-xs font-medium text-amber-600">Do akceptacji</p>
+          <p className="mt-1 text-2xl font-bold text-amber-700">{pending.length}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-medium text-slate-500">Wszyscy agenci</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{allAgents}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-medium text-slate-500">Opublikowanych</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-600">{published}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-medium text-slate-500">Użytkownicy</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{allUsers}</p>
+        </div>
       </div>
 
       {/* Pending agents */}
-      <section>
-        <h2 className="mb-4 text-base font-semibold text-slate-900">
-          Do akceptacji
+      <div>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">
+          Oczekuje na akceptację
           {pending.length > 0 && (
-            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
               {pending.length}
             </span>
           )}
         </h2>
 
         {pending.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 p-12 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-2xl">✅</div>
-            <p className="font-medium text-slate-700">Wszystko przejrzane</p>
-            <p className="mt-1 text-sm text-slate-500">Brak agentów oczekujących na akceptację.</p>
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-14 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm text-2xl">✅</div>
+            <p className="font-semibold text-slate-800">Wszystko zaktualizowane</p>
+            <p className="mt-1.5 text-sm text-slate-500">Brak agentów oczekujących na akceptację.</p>
           </div>
         ) : (
           <div className="space-y-4">
             {pending.map((a) => (
-              <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex items-start justify-between gap-4">
+              <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-900">{a.name}</span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{a.category}</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-slate-900">{a.name}</h3>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{a.category}</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Twórca: <span className="font-medium">{a.creator.email}</span>
-                      {" · "}
-                      {new Date(a.createdAt).toLocaleDateString("pl-PL")}
+                    {a.tagline && (
+                      <p className="mt-1 text-sm text-slate-600">{a.tagline}</p>
+                    )}
+                    <p className="mt-1.5 text-xs text-slate-400">
+                      Twórca: {a.creator.email} · {new Date(a.createdAt).toLocaleDateString("pl-PL")}
                     </p>
                   </div>
+                  <Link
+                    href={`/agents/${a.slug}`}
+                    className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                    target="_blank"
+                  >
+                    Podgląd ↗
+                  </Link>
+                </div>
 
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Link
-                      href={`/agents/${a.slug}`}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                <div className="flex items-center gap-2 border-t border-slate-100 pt-4">
+                  <form action={approveAction} style={{ display: "inline" }}>
+                    <input type="hidden" name="id" value={a.id} />
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-emerald-700"
                     >
-                      Podgląd
-                    </Link>
-                    <form action={rejectAction} style={{ display: "inline" }}>
-                      <input type="hidden" name="id" value={a.id} />
-                      <button
-                        type="submit"
-                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors"
-                      >
-                        Odrzuć
-                      </button>
-                    </form>
-                    <form action={approveAction} style={{ display: "inline" }}>
-                      <input type="hidden" name="id" value={a.id} />
-                      <button
-                        type="submit"
-                        className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors"
-                      >
-                        Zatwierdź
-                      </button>
-                    </form>
-                  </div>
+                      ✓ Zatwierdź → PUBLISHED
+                    </button>
+                  </form>
+                  <form action={rejectAction} style={{ display: "inline" }}>
+                    <input type="hidden" name="id" value={a.id} />
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 transition-all hover:bg-red-100"
+                    >
+                      ✗ Odrzuć → REJECTED
+                    </button>
+                  </form>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </section>
-
-      <div className="mt-8 text-sm text-slate-400">
-        <Link href="/" className="hover:text-slate-600">← Strona główna</Link>
       </div>
     </main>
   );

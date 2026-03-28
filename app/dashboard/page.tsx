@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import SignOutButton from "@/components/SignOutButton";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { StatusBadge } from "@/components/ui/Badge";
 
 type Role = "USER" | "CREATOR" | "ADMIN";
 type SessionUser = { id: string; email: string | null; role: Role };
@@ -26,24 +26,19 @@ async function submitForApprovalAction(formData: FormData) {
   const session = await getSession();
   const user = readSessionUser(session);
   if (!user || user.role !== "CREATOR") return;
+
   const id = String(formData.get("id") || "");
   if (!id) return;
+
   await prisma.agent.updateMany({
-    where: { id, creatorId: user.id, status: "DRAFT" },
+    where: { id, creatorId: user.id, status: { in: ["DRAFT", "REJECTED"] } },
     data: { status: "PENDING" },
   });
+
   revalidatePath("/dashboard");
   revalidatePath("/admin");
   revalidatePath("/");
 }
-
-const STATUS_STYLES: Record<string, string> = {
-  DRAFT: "bg-slate-100 text-slate-600",
-  PENDING: "bg-amber-50 text-amber-700",
-  PUBLISHED: "bg-green-50 text-green-700",
-  HIDDEN: "bg-red-50 text-red-600",
-  REJECTED: "bg-red-50 text-red-600",
-};
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -56,106 +51,124 @@ export default async function DashboardPage() {
   const agents = await prisma.agent.findMany({
     where: { creatorId: user.id },
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, slug: true, status: true, runsCount: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      status: true,
+      category: true,
+      runsCount: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
-  const totalRuns = agents.reduce((sum, a) => sum + a.runsCount, 0);
+  const totalRuns = agents.reduce((acc, a) => acc + a.runsCount, 0);
   const published = agents.filter((a) => a.status === "PUBLISHED").length;
   const pending = agents.filter((a) => a.status === "PENDING").length;
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-6 py-10">
       {/* Header */}
-      <div className="mb-10 flex items-start justify-between">
+      <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Panel twórcy</h1>
-          <p className="mt-1 text-sm text-slate-500">{user.email}</p>
+          <h1 className="text-2xl font-bold text-slate-900">Dashboard twórcy</h1>
+          <p className="mt-1 text-sm text-slate-500">{user.email ?? "-"}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/new"
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-          >
-            + Nowy agent
-          </Link>
-          <SignOutButton />
-        </div>
+        <Link
+          href="/dashboard/new"
+          className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700"
+        >
+          + Nowy agent
+        </Link>
       </div>
 
       {/* Stats */}
-      <div className="mb-10 grid grid-cols-3 gap-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-4">
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+          <p className="text-xs font-medium text-indigo-600">Łączne uruchomienia</p>
+          <p className="mt-1 text-2xl font-bold text-indigo-700">{totalRuns.toLocaleString("pl-PL")}</p>
+        </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500">Agenty łącznie</p>
+          <p className="text-xs font-medium text-slate-500">Wszyscy agenci</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{agents.length}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500">Opublikowane</p>
-          <p className="mt-1 text-2xl font-bold text-green-600">{published}</p>
+          <p className="text-xs font-medium text-slate-500">Opublikowanych</p>
+          <p className="mt-1 text-2xl font-bold text-emerald-600">{published}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500">Uruchomień łącznie</p>
-          <p className="mt-1 text-2xl font-bold text-indigo-600">{totalRuns}</p>
+          <p className="text-xs font-medium text-slate-500">Oczekuje</p>
+          <p className="mt-1 text-2xl font-bold text-amber-600">{pending}</p>
         </div>
       </div>
 
-      {pending > 0 && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          ⏳ Masz {pending} {pending === 1 ? "agenta" : "agentów"} oczekujących na akceptację.
-        </div>
-      )}
-
       {/* Agents list */}
-      <section>
-        <h2 className="mb-4 text-base font-semibold text-slate-900">Twoi agenci</h2>
+      <div>
+        <h2 className="mb-4 text-lg font-semibold text-slate-900">Twoi agenci</h2>
 
         {agents.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 p-12 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-2xl">🤖</div>
-            <p className="font-medium text-slate-700">Brak agentów</p>
-            <p className="mt-1 text-sm text-slate-500">Stwórz pierwszego agenta i wyślij go do akceptacji</p>
-            <Link href="/dashboard/new" className="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-14 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm text-2xl">🤖</div>
+            <p className="font-semibold text-slate-800">Brak agentów</p>
+            <p className="mt-1.5 max-w-xs text-sm text-slate-500">Stwórz pierwszego agenta i wyślij go do akceptacji.</p>
+            <Link
+              href="/dashboard/new"
+              className="mt-5 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors"
+            >
               + Nowy agent
             </Link>
           </div>
         ) : (
           <div className="space-y-3">
             {agents.map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-900">{a.name}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[a.status] ?? "bg-slate-100 text-slate-600"}`}>
-                      {a.status}
-                    </span>
+              <div
+                key={a.id}
+                className={`rounded-2xl border bg-white p-5 ${
+                  a.status === "REJECTED" ? "border-red-200" : "border-slate-200"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h3 className="font-semibold text-slate-900">{a.name}</h3>
+                      <StatusBadge status={a.status} />
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {a.category} · ⚡ {a.runsCount.toLocaleString("pl-PL")} uruchomień ·{" "}
+                      {new Date(a.updatedAt).toLocaleDateString("pl-PL")}
+                    </p>
+                    {a.status === "REJECTED" && (
+                      <p className="mt-1.5 text-xs text-red-600">
+                        Agent odrzucony przez administratora. Popraw go i wyślij ponownie.
+                      </p>
+                    )}
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    ⚡ {a.runsCount} uruchomień · {new Date(a.createdAt).toLocaleDateString("pl-PL")}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {a.status === "DRAFT" && (
-                    <form action={submitForApprovalAction}>
-                      <input type="hidden" name="id" value={a.id} />
-                      <button
-                        type="submit"
-                        className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 transition-colors"
-                      >
-                        Wyślij do akceptacji
-                      </button>
-                    </form>
-                  )}
-                  <Link
-                    href={`/agents/${a.slug}`}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                  >
-                    Podgląd
-                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link
+                      href={`/agents/${a.slug}`}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      Podgląd
+                    </Link>
+                    {(a.status === "DRAFT" || a.status === "REJECTED") && (
+                      <form action={submitForApprovalAction} style={{ display: "inline" }}>
+                        <input type="hidden" name="id" value={a.id} />
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors"
+                        >
+                          {a.status === "REJECTED" ? "Wyślij ponownie" : "Wyślij do akceptacji"}
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </section>
+      </div>
     </main>
   );
 }
