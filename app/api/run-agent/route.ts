@@ -5,6 +5,30 @@ import { getSession } from "../../../lib/auth";
 
 const FREE_LIMIT = 3;
 
+// Rate limiting: 10 POST requests per user per minute (in-memory, per instance)
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+
+  if (!entry || now >= entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000);
+    return { allowed: false, retryAfterSec };
+  }
+
+  entry.count += 1;
+  return { allowed: true, retryAfterSec: 0 };
+}
+
 type RunItem = {
   id: string;
   input: string;
@@ -96,6 +120,18 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Zaloguj się, aby uruchomić agenta.", requiresAuth: true },
         { status: 401 }
+      );
+    }
+
+    // Rate limit check
+    const { allowed, retryAfterSec } = checkRateLimit(userId);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Zbyt wiele żądań. Spróbuj ponownie za ${retryAfterSec} s.` },
+        {
+          status: 429,
+          headers: { "Retry-After": String(retryAfterSec) },
+        }
       );
     }
 
