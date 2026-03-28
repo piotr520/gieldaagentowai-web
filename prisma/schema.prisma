@@ -54,6 +54,7 @@ model Agent {
   limitationsJson          String
   examplesJson             String
   status                   AgentStatus @default(DRAFT)
+  rejectionReason          String?
   lastUpdated              String
   runsCount                Int         @default(0)
 

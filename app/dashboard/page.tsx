@@ -69,6 +69,7 @@ export default async function DashboardPage() {
       createdAt: true,
       updatedAt: true,
       runsCount: true,
+      rejectionReason: true,
     }
   });
 
@@ -157,9 +158,16 @@ export default async function DashboardPage() {
                           {agent.category} · Zaktualizowano: {agent.updatedAt.toLocaleDateString("pl-PL")}
                         </p>
                         {isRejected && (
-                          <p className="mt-1.5 text-xs font-semibold text-red-600">
-                            Agent odrzucony — popraw i wyślij ponownie
-                          </p>
+                          <div className="mt-1.5">
+                            <p className="text-xs font-semibold text-red-600">
+                              Agent odrzucony — popraw i wyślij ponownie
+                            </p>
+                            {agent.rejectionReason && (
+                              <p className="mt-1 text-xs text-red-500 italic">
+                                Powód: {agent.rejectionReason}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

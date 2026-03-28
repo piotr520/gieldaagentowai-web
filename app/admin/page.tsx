@@ -13,12 +13,9 @@ function readSessionUser(session: unknown): SessionUser | null {
   const u = s.user;
   if (!u || typeof u !== "object") return null;
   const uu = u as { id?: unknown; email?: unknown; role?: unknown };
-
   if (typeof uu.id !== "string") return null;
-
   const role = uu.role;
   if (role !== "USER" && role !== "CREATOR" && role !== "ADMIN") return null;
-
   const email = typeof uu.email === "string" ? uu.email : null;
   return { id: uu.id, email, role };
 }
@@ -36,15 +33,12 @@ async function approveAction(formData: FormData) {
   const session = await getSession();
   const user = readSessionUser(session);
   if (!user || user.role !== "ADMIN") return;
-
   const id = String(formData.get("id") || "");
   if (!id) return;
-
   await prisma.agent.update({
     where: { id },
-    data: { status: "PUBLISHED" }
+    data: { status: "PUBLISHED", rejectionReason: null },
   });
-
   revalidatePath("/admin");
   revalidatePath("/dashboard");
   revalidatePath("/");
@@ -55,15 +49,13 @@ async function rejectAction(formData: FormData) {
   const session = await getSession();
   const user = readSessionUser(session);
   if (!user || user.role !== "ADMIN") return;
-
   const id = String(formData.get("id") || "");
   if (!id) return;
-
+  const reason = String(formData.get("reason") || "").trim() || null;
   await prisma.agent.update({
     where: { id },
-    data: { status: "REJECTED" }
+    data: { status: "REJECTED", rejectionReason: reason },
   });
-
   revalidatePath("/admin");
   revalidatePath("/dashboard");
   revalidatePath("/");
@@ -87,8 +79,8 @@ export default async function AdminPage() {
       slug: true,
       category: true,
       createdAt: true,
-      creator: { select: { email: true } }
-    }
+      creator: { select: { email: true } },
+    },
   });
 
   const [allCount, publishedCount, userCount] = await Promise.all([
@@ -174,32 +166,42 @@ export default async function AdminPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Link
-                        href={`/agents/${agent.slug}`}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                      >
-                        Podgląd
-                      </Link>
-                      <form action={rejectAction}>
-                        <input type="hidden" name="id" value={agent.id} />
+                    <Link
+                      href={`/agents/${agent.slug}`}
+                      className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      Podgląd
+                    </Link>
+                  </div>
+
+                  {/* Reject form with reason */}
+                  <div className="mt-4 border-t border-slate-100 pt-4 space-y-3">
+                    <form action={rejectAction} className="flex flex-col gap-2">
+                      <input type="hidden" name="id" value={agent.id} />
+                      <textarea
+                        name="reason"
+                        rows={2}
+                        placeholder="Powód odrzucenia (opcjonalnie) — twórca zobaczy ten komunikat"
+                        className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 placeholder-slate-400 outline-none focus:border-red-300 focus:ring-2 focus:ring-red-100 transition-all"
+                      />
+                      <div className="flex items-center gap-2">
                         <button
                           type="submit"
-                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 transition-colors"
+                          className="rounded-lg border border-red-200 bg-red-50 px-4 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 transition-colors"
                         >
-                          Odrzuć
+                          ✗ Odrzuć → REJECTED
                         </button>
-                      </form>
-                      <form action={approveAction}>
-                        <input type="hidden" name="id" value={agent.id} />
-                        <button
-                          type="submit"
-                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-colors"
-                        >
-                          Zatwierdź →
-                        </button>
-                      </form>
-                    </div>
+                        <form action={approveAction}>
+                          <input type="hidden" name="id" value={agent.id} />
+                          <button
+                            type="submit"
+                            className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-colors"
+                          >
+                            ✓ Zatwierdź → PUBLISHED
+                          </button>
+                        </form>
+                      </div>
+                    </form>
                   </div>
                 </div>
               );
