@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import SignOutButton from "@/components/SignOutButton";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -13,7 +12,6 @@ export default async function AccountPage() {
   const userId = session.user.id;
   const userEmail = session.user.email ?? "-";
 
-  // Historia uruchomień użytkownika (ostatnie 20)
   const runs = await prisma.agentRun.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
@@ -27,7 +25,6 @@ export default async function AccountPage() {
     },
   });
 
-  // Per-agent statystyki
   const agentStats = await prisma.agentRun.groupBy({
     by: ["agentId"],
     where: { userId },
@@ -45,101 +42,130 @@ export default async function AccountPage() {
   const agentMap = Object.fromEntries(agents.map((a) => [a.id, a]));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <h1 className="mb-1 text-2xl font-bold">Moje konto</h1>
-      <p className="mb-6 text-sm text-neutral-500">{userEmail}</p>
-
-      <div className="mb-6 flex gap-3">
-        <SignOutButton />
+    <main className="mx-auto max-w-4xl px-6 py-10">
+      {/* Header */}
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900">Moje konto</h1>
+          <p className="mt-1.5 text-sm text-slate-500">{userEmail}</p>
+        </div>
+        <form action="/api/auth/signout" method="POST">
+          <input type="hidden" name="callbackUrl" value="/" />
+          <button
+            type="submit"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+          >
+            Wyloguj
+          </button>
+        </form>
       </div>
 
-      {/* Statystyki per agent */}
-      {agentStats.length > 0 ? (
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold">Użyte agenty</h2>
-          <div className="space-y-2">
+      {/* Stats grid */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-violet-50 p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-1">Uruchomień łącznie</p>
+          <p className="text-3xl font-extrabold text-indigo-700">{runs.length}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Użytych agentów</p>
+          <p className="text-3xl font-extrabold text-slate-900">{agentStats.length}</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-500 mb-1">Konto aktywne</p>
+          <p className="text-3xl font-extrabold text-emerald-600">✓</p>
+        </div>
+      </div>
+
+      {/* Agent usage */}
+      {agentStats.length > 0 && (
+        <section className="mb-10">
+          <h2 className="mb-4 text-xl font-extrabold text-slate-900">Używane agenty</h2>
+          <div className="space-y-3">
             {agentStats.map((stat) => {
               const agent = agentMap[stat.agentId];
               if (!agent) return null;
               const used = stat._count.id;
               const remaining = Math.max(0, FREE_LIMIT - used);
+              const pct = Math.min(100, (used / FREE_LIMIT) * 100);
               return (
-                <div
-                  key={stat.agentId}
-                  className="flex items-center justify-between rounded border border-neutral-200 px-4 py-3"
-                >
-                  <div>
-                    <Link href={`/agents/${agent.slug}`} className="font-medium hover:underline">
+                <div key={stat.agentId} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between gap-4">
+                    <Link href={`/agents/${agent.slug}`} className="font-bold text-slate-900 hover:text-indigo-700 transition-colors">
                       {agent.name}
                     </Link>
-                    <p className="text-xs text-neutral-500">
-                      Uruchomień: {used} / {FREE_LIMIT} — pozostało darmowych: {remaining}
-                    </p>
+                    <Link
+                      href={`/agents/${agent.slug}/run`}
+                      className="shrink-0 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                    >
+                      Uruchom →
+                    </Link>
                   </div>
-                  <Link
-                    href={`/agents/${agent.slug}/run`}
-                    className="text-sm font-medium underline"
-                  >
-                    Uruchom →
-                  </Link>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 overflow-hidden rounded-full bg-slate-100 h-1.5">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="shrink-0 text-xs font-medium text-slate-500">
+                      {used}/{FREE_LIMIT} · {remaining} pozostało
+                    </span>
+                  </div>
                 </div>
               );
             })}
           </div>
         </section>
-      ) : null}
+      )}
 
-      {/* Historia uruchomień */}
+      {/* Run history */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Historia uruchomień</h2>
+        <h2 className="mb-4 text-xl font-extrabold text-slate-900">Historia uruchomień</h2>
 
         {runs.length === 0 ? (
-          <div className="rounded border border-neutral-200 p-6 text-center">
-            <p className="text-sm text-neutral-500">Brak uruchomień. Zacznij od katalogu agentów.</p>
-            <Link href="/agents" className="mt-3 inline-block text-sm font-medium underline">
-              Przeglądaj agentów →
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-16 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm text-3xl">⚡</div>
+            <p className="font-bold text-slate-800 text-lg">Brak uruchomień</p>
+            <p className="mt-1.5 max-w-xs text-sm text-slate-500">Zacznij od katalogu agentów i uruchom pierwszego agenta.</p>
+            <Link
+              href="/agents"
+              className="mt-6 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 transition-colors"
+            >
+              Przeglądaj agentów
             </Link>
           </div>
         ) : (
           <div className="space-y-3">
             {runs.map((run, i) => (
-              <article key={run.id} className="rounded border border-neutral-200 p-4">
-                <div className="mb-2 flex items-start justify-between gap-4">
+              <article key={run.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div className="mb-3 flex items-start justify-between gap-4">
                   <div>
                     <Link
                       href={`/agents/${run.agent.slug}`}
-                      className="text-sm font-semibold hover:underline"
+                      className="text-sm font-bold text-slate-900 hover:text-indigo-700 transition-colors"
                     >
                       {run.agent.name}
                     </Link>
-                    <p className="text-xs text-neutral-400">
+                    <p className="mt-0.5 text-xs text-slate-400">
                       {run.createdAt.toLocaleString("pl-PL")} · #{runs.length - i}
                     </p>
                   </div>
                   <Link
                     href={`/agents/${run.agent.slug}/run`}
-                    className="shrink-0 text-xs font-medium underline"
+                    className="shrink-0 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                   >
                     Uruchom znowu
                   </Link>
                 </div>
-                <p className="mb-2 rounded bg-neutral-100 px-3 py-2 text-xs text-neutral-700 line-clamp-2">
-                  Zapytanie: {run.inputJson}
-                </p>
-                <p className="text-xs text-neutral-600 line-clamp-3">
-                  {run.outputText}
-                </p>
+                <div className="mb-2 rounded-xl bg-indigo-50 border border-indigo-100 px-3.5 py-2.5 text-xs text-slate-700 line-clamp-2">
+                  {run.inputJson}
+                </div>
+                <p className="text-xs text-slate-500 line-clamp-3 leading-relaxed">{run.outputText}</p>
               </article>
             ))}
           </div>
         )}
       </section>
-
-      <p className="mt-8">
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
-          ← Strona główna
-        </Link>
-      </p>
     </main>
   );
 }

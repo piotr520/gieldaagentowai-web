@@ -13,9 +13,12 @@ function readSessionUser(session: unknown): SessionUser | null {
   const u = s.user;
   if (!u || typeof u !== "object") return null;
   const uu = u as { id?: unknown; email?: unknown; role?: unknown };
+
   if (typeof uu.id !== "string") return null;
+
   const role = uu.role;
   if (role !== "USER" && role !== "CREATOR" && role !== "ADMIN") return null;
+
   const email = typeof uu.email === "string" ? uu.email : null;
   return { id: uu.id, email, role };
 }
@@ -33,10 +36,17 @@ async function approveAction(formData: FormData) {
   const session = await getSession();
   const user = readSessionUser(session);
   if (!user || user.role !== "ADMIN") return;
+
   const id = String(formData.get("id") || "");
   if (!id) return;
-  await prisma.agent.update({ where: { id }, data: { status: "PUBLISHED" } });
+
+  await prisma.agent.update({
+    where: { id },
+    data: { status: "PUBLISHED" }
+  });
+
   revalidatePath("/admin");
+  revalidatePath("/dashboard");
   revalidatePath("/");
 }
 
@@ -45,133 +55,155 @@ async function rejectAction(formData: FormData) {
   const session = await getSession();
   const user = readSessionUser(session);
   if (!user || user.role !== "ADMIN") return;
+
   const id = String(formData.get("id") || "");
   if (!id) return;
-  await prisma.agent.update({ where: { id }, data: { status: "REJECTED" } });
+
+  await prisma.agent.update({
+    where: { id },
+    data: { status: "REJECTED" }
+  });
+
   revalidatePath("/admin");
   revalidatePath("/dashboard");
   revalidatePath("/");
 }
 
+const CATEGORY_ICONS: Record<string, string> = {
+  Biznes: "💼", Marketing: "📢", HR: "👥", "E-commerce": "🛒",
+  Prawo: "⚖️", IT: "💻", Edukacja: "📚", Budownictwo: "🏗️",
+  Finanse: "💰", Zdrowie: "🏥",
+};
+
 export default async function AdminPage() {
   const user = await requireAdmin();
 
-  const [pending, allAgents, allUsers] = await Promise.all([
-    prisma.agent.findMany({
-      where: { status: "PENDING" },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true, name: true, slug: true, category: true,
-        tagline: true, createdAt: true, creator: { select: { email: true } },
-      },
-    }),
+  const pending = await prisma.agent.findMany({
+    where: { status: "PENDING" },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      category: true,
+      createdAt: true,
+      creator: { select: { email: true } }
+    }
+  });
+
+  const [allCount, publishedCount, userCount] = await Promise.all([
     prisma.agent.count(),
+    prisma.agent.count({ where: { status: "PUBLISHED" } }),
     prisma.user.count(),
   ]);
-
-  const published = await prisma.agent.count({ where: { status: "PUBLISHED" } });
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
       {/* Header */}
-      <div className="mb-8 flex items-start justify-between gap-4">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Panel administracyjny</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900">Panel admina</h1>
           <p className="mt-1 text-sm text-slate-500">{user.email ?? "-"}</p>
         </div>
-        <Link
-          href="/"
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
-        >
-          ← Katalog
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+          >
+            Dashboard twórcy
+          </Link>
+          <Link
+            href="/"
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+          >
+            Katalog
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-4">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-          <p className="text-xs font-medium text-amber-600">Do akceptacji</p>
-          <p className="mt-1 text-2xl font-bold text-amber-700">{pending.length}</p>
+      <div className="mb-10 grid gap-4 sm:grid-cols-4">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-500 mb-1">Do akceptacji</p>
+          <p className="text-3xl font-extrabold text-amber-700">{pending.length}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500">Wszyscy agenci</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{allAgents}</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Wszyscy agenci</p>
+          <p className="text-3xl font-extrabold text-slate-900">{allCount}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500">Opublikowanych</p>
-          <p className="mt-1 text-2xl font-bold text-emerald-600">{published}</p>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-500 mb-1">Opublikowanych</p>
+          <p className="text-3xl font-extrabold text-emerald-700">{publishedCount}</p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500">Użytkownicy</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{allUsers}</p>
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-1">Użytkownicy</p>
+          <p className="text-3xl font-extrabold text-indigo-700">{userCount}</p>
         </div>
       </div>
 
-      {/* Pending agents */}
+      {/* Pending list */}
       <div>
-        <h2 className="mb-4 text-lg font-semibold text-slate-900">
-          Oczekuje na akceptację
-          {pending.length > 0 && (
-            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
-              {pending.length}
-            </span>
-          )}
-        </h2>
+        <h2 className="mb-4 text-xl font-extrabold text-slate-900">Do akceptacji (PENDING)</h2>
 
         {pending.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-14 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm text-2xl">✅</div>
-            <p className="font-semibold text-slate-800">Wszystko zaktualizowane</p>
-            <p className="mt-1.5 text-sm text-slate-500">Brak agentów oczekujących na akceptację.</p>
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-16 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm text-3xl">✅</div>
+            <p className="font-bold text-slate-800 text-lg">Brak pozycji do akceptacji</p>
+            <p className="mt-1.5 text-sm text-slate-500">Wszystkie zgłoszenia zostały rozpatrzone.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {pending.map((a) => (
-              <div key={a.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-slate-900">{a.name}</h3>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">{a.category}</span>
+          <div className="space-y-3">
+            {pending.map((agent) => {
+              const icon = CATEGORY_ICONS[agent.category] ?? "🤖";
+              return (
+                <div key={agent.id} className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 text-xl">
+                        {icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900">{agent.name}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {agent.category} · {agent.slug}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          Twórca: <span className="font-medium text-slate-600">{agent.creator.email}</span>
+                          {" · "}Zgłoszono: {agent.createdAt.toLocaleDateString("pl-PL")}
+                        </p>
+                      </div>
                     </div>
-                    {a.tagline && (
-                      <p className="mt-1 text-sm text-slate-600">{a.tagline}</p>
-                    )}
-                    <p className="mt-1.5 text-xs text-slate-400">
-                      Twórca: {a.creator.email} · {new Date(a.createdAt).toLocaleDateString("pl-PL")}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/agents/${a.slug}`}
-                    className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                    target="_blank"
-                  >
-                    Podgląd ↗
-                  </Link>
-                </div>
 
-                <div className="flex items-center gap-2 border-t border-slate-100 pt-4">
-                  <form action={approveAction} style={{ display: "inline" }}>
-                    <input type="hidden" name="id" value={a.id} />
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-emerald-700"
-                    >
-                      ✓ Zatwierdź → PUBLISHED
-                    </button>
-                  </form>
-                  <form action={rejectAction} style={{ display: "inline" }}>
-                    <input type="hidden" name="id" value={a.id} />
-                    <button
-                      type="submit"
-                      className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 transition-all hover:bg-red-100"
-                    >
-                      ✗ Odrzuć → REJECTED
-                    </button>
-                  </form>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link
+                        href={`/agents/${agent.slug}`}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        Podgląd
+                      </Link>
+                      <form action={rejectAction}>
+                        <input type="hidden" name="id" value={agent.id} />
+                        <button
+                          type="submit"
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100 transition-colors"
+                        >
+                          Odrzuć
+                        </button>
+                      </form>
+                      <form action={approveAction}>
+                        <input type="hidden" name="id" value={agent.id} />
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 transition-colors"
+                        >
+                          Zatwierdź →
+                        </button>
+                      </form>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
