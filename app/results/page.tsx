@@ -85,7 +85,8 @@ function scoreAgent(
   }
 
   // popularity bonus (log scale, max ~4 pts at 1000 runs)
-  if (agent.runsCount > 0) {
+  // only boost agents that already have keyword/branza relevance
+  if (agent.runsCount > 0 && score > 0) {
     const pop = Math.min(4, Math.floor(Math.log10(agent.runsCount + 1) * 2));
     score += pop;
     if (agent.runsCount >= 100) reasonParts.push(`${agent.runsCount.toLocaleString("pl-PL")} uruchomień`);
