@@ -49,7 +49,14 @@ const CATEGORY_ICONS: Record<string, string> = {
   Finanse: "💰", Zdrowie: "🏥",
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ created?: string }>;
+}) {
+  const sp = await searchParams;
+  const createdSlug = (sp.created ?? "").trim();
+
   const session = await getSession();
   const user = readSessionUser(session);
 
@@ -117,6 +124,19 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* New agent banner */}
+      {createdSlug && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">✓</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-emerald-800">Agent zapisany jako szkic</p>
+            <p className="mt-0.5 text-xs text-emerald-700 leading-relaxed">
+              Sprawdź dane i kliknij <span className="font-semibold">Wyślij do akceptacji →</span> aby opublikować agenta na giełdzie.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Agent list */}
       <div>
         <h2 className="mb-4 text-xl font-extrabold text-slate-900">Twoi agenci</h2>
@@ -141,11 +161,12 @@ export default async function DashboardPage() {
               const isPopular = agent.runsCount >= 10;
               const ageMs = now.getTime() - agent.createdAt.getTime();
               const isNew = ageMs < 7 * 24 * 60 * 60 * 1000;
+              const isJustCreated = createdSlug === agent.slug;
               return (
                 <div
                   key={agent.id}
                   className={`rounded-2xl border bg-white p-5 shadow-sm transition-shadow hover:shadow-md ${
-                    isRejected ? "border-red-200" : "border-slate-200"
+                    isRejected ? "border-red-200" : isJustCreated ? "border-emerald-300 ring-1 ring-emerald-200" : "border-slate-200"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">

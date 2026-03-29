@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -174,6 +175,10 @@ export default async function ResultsPage({
 
   if (!query && !branza && !cel) redirect("/agents");
 
+  // role-aware CTA
+  const session = await getSession();
+  const role = (session?.user as { role?: string } | undefined)?.role ?? null;
+
   const allAgents = await prisma.agent.findMany({
     where: { status: "PUBLISHED" },
     select: {
@@ -269,6 +274,18 @@ export default async function ResultsPage({
   const best = results[0];
   const sectionHeading = buildHeading(branza, budzet2, query);
   const budzetStr = sp.budzet ?? "";
+
+  // role-aware design CTA
+  const isCreator = role === "CREATOR" || role === "ADMIN";
+  const isUser = role === "USER";
+  const becomeCreatorHref = `/become-creator?redirect=${encodeURIComponent(newAgentHref)}`;
+  const loginHref = `/login?callbackUrl=${encodeURIComponent(becomeCreatorHref)}`;
+  const designCtaLabel = isCreator
+    ? "Zaprojektuj nowego agenta →"
+    : isUser
+    ? "Zostań twórcą i stwórz agenta →"
+    : "Zaloguj się i stwórz agenta →";
+  const designCtaHref = isCreator ? newAgentHref : isUser ? becomeCreatorHref : loginHref;
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
@@ -574,11 +591,27 @@ export default async function ResultsPage({
             </div>
           )}
 
-          {/* Mini prefill form → /dashboard/new */}
+          {/* Mini prefill form → /dashboard/new (CREATOR) or role-aware CTA */}
           <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-6">
             <p className="mb-4 text-sm font-bold text-indigo-800">
-              {ctaLabel.replace(" →", "")} — uzupełnij pola i przejdź do projektowania
+              {isCreator
+                ? `${ctaLabel.replace(" →", "")} — uzupełnij pola i przejdź do projektowania`
+                : isUser
+                ? "Zostań twórcą — jeden krok i możesz opublikować własnego agenta na giełdzie"
+                : "Zaloguj się lub zarejestruj — opublikuj własnego agenta na giełdzie"}
             </p>
+            {!isCreator ? (
+              <div className="flex flex-wrap gap-3">
+                <Link href={designCtaHref}
+                  className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all hover:-translate-y-0.5">
+                  {designCtaLabel}
+                </Link>
+                <Link href="/agents"
+                  className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors self-center">
+                  Przeglądaj katalog
+                </Link>
+              </div>
+            ) : (
             <form action="/dashboard/new" method="GET" className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">Opis agenta</label>
@@ -624,6 +657,7 @@ export default async function ResultsPage({
                 </Link>
               </div>
             </form>
+            )}
           </div>
         </section>
       )}
@@ -634,9 +668,9 @@ export default async function ResultsPage({
           <p className="text-sm text-slate-600">
             Nie widzisz agenta spełniającego Twoje potrzeby?
           </p>
-          <Link href={newAgentHref}
+          <Link href={designCtaHref}
             className="rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors shrink-0">
-            Zaprojektuj nowego agenta →
+            {designCtaLabel}
           </Link>
         </div>
       )}

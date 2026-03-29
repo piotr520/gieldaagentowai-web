@@ -108,7 +108,7 @@ async function createAgentAction(formData: FormData) {
     },
   });
 
-  redirect("/dashboard");
+  redirect(`/dashboard?created=${slug}`);
 }
 
 export default async function NewAgentPage({
