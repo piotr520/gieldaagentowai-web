@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Input, Textarea, Select } from "@/components/ui/Input";
+import { AgentDraftFiller } from "@/components/AgentDraftFiller";
 
 const CATEGORIES = [
   "Biznes", "Marketing", "HR", "E-commerce", "Budownictwo",
@@ -107,13 +108,13 @@ async function createAgentAction(formData: FormData) {
     },
   });
 
-  redirect("/dashboard");
+  redirect(`/dashboard?created=${slug}`);
 }
 
 export default async function NewAgentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; prefill_desc?: string; prefill_branza?: string; prefill_cel?: string }>;
 }) {
   const session = await getSession();
   const user = readSessionUser(session);
@@ -122,6 +123,25 @@ export default async function NewAgentPage({
 
   const params = await searchParams;
   const hasError = params.error === "missing";
+  const prefillDesc = params.prefill_desc ?? "";
+  const prefillBranza = params.prefill_branza ?? "";
+  const prefillCel = params.prefill_cel ?? "";
+  const hasPrefill = !!(prefillDesc || prefillBranza || prefillCel);
+
+  // Build prefilled description
+  const prefilledDescription = [
+    prefillDesc,
+    prefillBranza ? `Branża: ${prefillBranza}` : "",
+    prefillCel ? `Cel: ${prefillCel}` : "",
+  ].filter(Boolean).join("\n\n");
+
+  // Best matching category from branza
+  const BRANZA_TO_CATEGORY: Record<string, string> = {
+    hr: "HR", marketing: "Marketing", prawo: "Prawo", finanse: "Finanse",
+    it: "IT", edukacja: "Edukacja", budownictwo: "Budownictwo",
+    "e-commerce": "E-commerce", ecommerce: "E-commerce", zdrowie: "Zdrowie",
+  };
+  const suggestedCategory = BRANZA_TO_CATEGORY[prefillBranza.toLowerCase()] ?? "";
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-10">
@@ -140,6 +160,19 @@ export default async function NewAgentPage({
         <p className="mt-1.5 text-sm text-slate-500">Wypełnij formularz i wyślij agenta do akceptacji.</p>
       </div>
 
+      {/* Prefill banner */}
+      {hasPrefill && (
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-4">
+          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">✦</span>
+          <div>
+            <p className="text-sm font-bold text-indigo-800">Tworzysz agenta na podstawie zapytania użytkownika</p>
+            <p className="mt-0.5 text-xs text-indigo-600 leading-relaxed">
+              Pola zostały wstępnie wypełnione na podstawie Twojego opisu. Możesz je edytować przed zapisem.
+            </p>
+          </div>
+        </div>
+      )}
+
       {hasError && (
         <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <span className="text-red-500">⚠</span>
@@ -147,7 +180,14 @@ export default async function NewAgentPage({
         </div>
       )}
 
-      <form action={createAgentAction} className="space-y-6">
+      <AgentDraftFiller
+        action={createAgentAction}
+        hasPrefill={hasPrefill}
+        prefillDesc={prefillDesc}
+        prefillBranza={prefillBranza}
+        prefillCel={prefillCel}
+        initialCategory={suggestedCategory}
+      >
         {/* Basic info */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
           <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Podstawowe informacje</h2>
@@ -167,7 +207,7 @@ export default async function NewAgentPage({
             maxLength={200}
             placeholder="Jedno zdanie opisujące agenta"
           />
-          <Select label="Kategoria" name="category" required>
+          <Select label="Kategoria" name="category" required defaultValue={suggestedCategory}>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -178,6 +218,7 @@ export default async function NewAgentPage({
             required
             rows={5}
             placeholder="Szczegółowy opis tego, co agent robi, jak działa i dla kogo jest przeznaczony..."
+            defaultValue={prefilledDescription}
           />
         </div>
 
@@ -257,7 +298,7 @@ export default async function NewAgentPage({
             Zapisz jako szkic
           </button>
         </div>
-      </form>
+      </AgentDraftFiller>
     </main>
   );
 }
