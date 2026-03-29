@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Input, Textarea, Select } from "@/components/ui/Input";
+import { AgentDraftFiller } from "@/components/AgentDraftFiller";
 
 const CATEGORIES = [
   "Biznes", "Marketing", "HR", "E-commerce", "Budownictwo",
@@ -179,7 +180,14 @@ export default async function NewAgentPage({
         </div>
       )}
 
-      <form action={createAgentAction} className="space-y-6">
+      <AgentDraftFiller
+        action={createAgentAction}
+        hasPrefill={hasPrefill}
+        prefillDesc={prefillDesc}
+        prefillBranza={prefillBranza}
+        prefillCel={prefillCel}
+        initialCategory={suggestedCategory}
+      >
         {/* Basic info */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
           <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Podstawowe informacje</h2>
@@ -290,7 +298,7 @@ export default async function NewAgentPage({
             Zapisz jako szkic
           </button>
         </div>
-      </form>
+      </AgentDraftFiller>
     </main>
   );
 }
