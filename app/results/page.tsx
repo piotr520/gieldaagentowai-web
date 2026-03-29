@@ -25,6 +25,17 @@ type ScoredAgent = Agent & {
   reasonParts: string[];
 };
 
+// --- word aliases for Polish inflection (MVP, hand-curated) ---
+
+const WORD_ALIASES: Record<string, string[]> = {
+  umowa:        ["umowa", "umowy", "umów", "umowę", "umowie"],
+  prawna:       ["prawna", "prawne", "prawnych", "prawny", "prawnej", "prawniczy"],
+  rekrutacja:   ["rekrutacja", "rekrutacji", "rekrutacyjne", "rekrutacyjnych"],
+  faktura:      ["faktura", "faktury", "faktur", "fakturowanie"],
+  programowanie:["programowanie", "programowania", "programista", "programisty"],
+  marketing:    ["marketing", "marketingowy", "marketingowych", "marketingowe"],
+};
+
 // --- scoring ---
 
 function lowestPrice(agent: Agent): number {
@@ -62,12 +73,14 @@ function scoreAgent(
     else if (desc.includes(phrase)) { score += 3; }
   }
 
-  // per-word scoring
+  // per-word scoring (with alias expansion for Polish inflection)
   for (const w of words) {
-    if (name.includes(w)) { score += 6; matchTags.push(w); }
-    else if (tagline.includes(w)) { score += 4; matchTags.push(w); }
-    else if (cat.includes(w)) { score += 3; matchTags.push(w); }
-    else if (desc.includes(w)) { score += 1; }
+    const variants = WORD_ALIASES[w] ?? [w];
+    const hits = (field: string) => variants.some((v) => field.includes(v));
+    if (hits(name)) { score += 6; matchTags.push(w); }
+    else if (hits(tagline)) { score += 4; matchTags.push(w); }
+    else if (hits(cat)) { score += 3; matchTags.push(w); }
+    else if (hits(desc)) { score += 1; }
   }
 
   // branza
