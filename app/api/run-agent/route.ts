@@ -198,8 +198,6 @@ export async function POST(req: Request) {
       });
     } catch (dbError) {
       console.error("POST /api/run-agent — DB transaction error:", dbError);
-      // result already computed — still return it, state may be stale
-      return NextResponse.json({ result, isAuthenticated: true });
     }
 
     const state = await getAgentState(agentSlug, userId);
