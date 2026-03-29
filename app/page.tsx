@@ -15,26 +15,31 @@ const CATEGORIES = [
   { name: "Edukacja", icon: "📚", desc: "Materiały i plany nauki" },
 ];
 
-async function getFeaturedAgents() {
-  return prisma.agent.findMany({
-    where: { status: "PUBLISHED" },
-    orderBy: [{ runsCount: "desc" }, { updatedAt: "desc" }],
-    take: 6,
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      tagline: true,
-      category: true,
-      pricingType: true,
-      pricingLabel: true,
-      runsCount: true,
-    },
-  });
+async function getHomeData() {
+  const [featured, agentCount, totalRuns] = await Promise.all([
+    prisma.agent.findMany({
+      where: { status: "PUBLISHED" },
+      orderBy: [{ runsCount: "desc" }, { updatedAt: "desc" }],
+      take: 6,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        tagline: true,
+        category: true,
+        pricingType: true,
+        pricingLabel: true,
+        runsCount: true,
+      },
+    }),
+    prisma.agent.count({ where: { status: "PUBLISHED" } }),
+    prisma.agentRun.count(),
+  ]);
+  return { featured, agentCount, totalRuns };
 }
 
 export default async function HomePage() {
-  const featured = await getFeaturedAgents();
+  const { featured, agentCount, totalRuns } = await getHomeData();
 
   return (
     <main>
@@ -134,9 +139,9 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-3">
             {[
-              { value: "200+", label: "agentów AI" },
+              { value: agentCount > 0 ? `${agentCount}` : "0", label: "agentów AI" },
               { value: "8", label: "kategorii" },
-              { value: "3", label: "darmowe uruchomienia" },
+              { value: totalRuns > 0 ? `${totalRuns.toLocaleString("pl-PL")}` : "0", label: "uruchomień" },
             ].map((stat) => (
               <div key={stat.label} className="flex items-center gap-2">
                 <span className="text-xl font-extrabold text-slate-900">{stat.value}</span>

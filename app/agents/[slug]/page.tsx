@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +9,39 @@ const CATEGORY_ICONS: Record<string, string> = {
   Prawo: "⚖️", IT: "💻", Edukacja: "📚", Budownictwo: "🏗️",
   Finanse: "💰", Zdrowie: "🏥",
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const agent = await prisma.agent.findFirst({
+    where: { slug, status: "PUBLISHED" },
+    select: { name: true, tagline: true, category: true },
+  });
+  if (!agent) return { title: "Agent nie znaleziony" };
+
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://gieldaagentowai.pl";
+  const description = agent.tagline ?? `Agent AI w kategorii ${agent.category}`;
+
+  return {
+    title: `${agent.name} — Giełda Agentów AI`,
+    description,
+    openGraph: {
+      title: agent.name,
+      description,
+      url: `${baseUrl}/agents/${slug}`,
+      siteName: "Giełda Agentów AI",
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: agent.name,
+      description,
+    },
+  };
+}
 
 export default async function AgentPage({
   params,
