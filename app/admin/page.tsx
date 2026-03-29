@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendAgentApprovedEmail, sendAgentRejectedEmail } from "@/lib/email";
 
 type Role = "USER" | "CREATOR" | "ADMIN";
 type SessionUser = { id: string; email: string | null; role: Role };
@@ -35,13 +36,17 @@ async function approveAction(formData: FormData) {
   if (!user || user.role !== "ADMIN") return;
   const id = String(formData.get("id") || "");
   if (!id) return;
-  await prisma.agent.update({
+  const agent = await prisma.agent.update({
     where: { id },
     data: { status: "PUBLISHED", rejectionReason: null },
+    select: { name: true, slug: true, creator: { select: { email: true } } },
   });
   revalidatePath("/admin");
   revalidatePath("/dashboard");
   revalidatePath("/");
+  if (agent.creator.email) {
+    sendAgentApprovedEmail(agent.creator.email, agent.name, agent.slug).catch(() => {});
+  }
 }
 
 async function rejectAction(formData: FormData) {
@@ -52,13 +57,17 @@ async function rejectAction(formData: FormData) {
   const id = String(formData.get("id") || "");
   if (!id) return;
   const reason = String(formData.get("reason") || "").trim() || null;
-  await prisma.agent.update({
+  const agent = await prisma.agent.update({
     where: { id },
     data: { status: "REJECTED", rejectionReason: reason },
+    select: { name: true, creator: { select: { email: true } } },
   });
   revalidatePath("/admin");
   revalidatePath("/dashboard");
   revalidatePath("/");
+  if (agent.creator.email) {
+    sendAgentRejectedEmail(agent.creator.email, agent.name, reason).catch(() => {});
+  }
 }
 
 const CATEGORY_ICONS: Record<string, string> = {

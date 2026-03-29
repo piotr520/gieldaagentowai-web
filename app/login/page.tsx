@@ -10,6 +10,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const registered = searchParams.get("registered") === "1";
+  const resetDone = searchParams.get("reset") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,6 +51,12 @@ function LoginForm() {
         </p>
       ) : null}
 
+      {resetDone ? (
+        <p style={{ color: "green" }}>
+          Hasło zostało zmienione. Możesz się zalogować.
+        </p>
+      ) : null}
+
       <form onSubmit={onSubmit}>
         <div>
           <label>
@@ -86,6 +93,9 @@ function LoginForm() {
         {error ? <p style={{ color: "red" }}>{error}</p> : null}
       </form>
 
+      <p>
+        Nie pamiętasz hasła? <Link href="/forgot-password">Zresetuj hasło</Link>
+      </p>
       <p>
         Nie masz konta? <Link href="/register">Zarejestruj się</Link>
       </p>
