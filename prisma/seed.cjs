@@ -261,7 +261,7 @@ async function main() {
   for (const a of seedAgents) {
     await prisma.agent.upsert({
       where: { slug: a.slug },
-      update: { runsCount: a.runsCount },
+      update: { runsCount: a.runsCount, status: "PUBLISHED" },
       create: {
         slug: a.slug,
         name: a.name,

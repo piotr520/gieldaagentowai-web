@@ -48,13 +48,13 @@ async function getAgentState(agentSlug: string, userId: string | null) {
 
   if (!agent) return null;
 
-  const hasAccess = userId
-    ? !!(await prisma.agentAccess.findUnique({
-        where: { userId_agentId: { userId, agentId: agent.id } },
-      }))
-    : false;
-
   const isFree = agent.pricingType === "FREE";
+
+  const hasAccess = userId
+    ? (isFree || !!(await prisma.agentAccess.findUnique({
+        where: { userId_agentId: { userId, agentId: agent.id } },
+      })))
+    : false;
 
   const userRunCount = userId
     ? await prisma.agentRun.count({ where: { agentId: agent.id, userId } })
