@@ -9,10 +9,21 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
+const baseUrl = process.env.NEXTAUTH_URL ?? "https://gieldaagentowai.pl";
+
 export const metadata: Metadata = {
-  title: "Giełda Agentów AI – Marketplace agentów AI",
+  title: {
+    default: "Giełda Agentów AI – Marketplace agentów AI",
+    template: "%s | Giełda Agentów AI",
+  },
   description:
     "Przeglądaj, uruchamiaj i kupuj agentów AI stworzonych przez ekspertów. Twórcy mogą wystawiać własnych agentów i zarabiać.",
+  metadataBase: new URL(baseUrl),
+  openGraph: {
+    siteName: "Giełda Agentów AI",
+    type: "website",
+    locale: "pl_PL",
+  },
 };
 
 export default function RootLayout({
