@@ -216,6 +216,56 @@ export default async function ResultsPage({
   if (cel) prefillParams.set("prefill_cel", cel);
   const newAgentHref = `/dashboard/new?${prefillParams.toString()}`;
 
+  // similar agents by category (shown only when score === 0 for all)
+  const noScoreAtAll = scored.every((a) => a.score === 0);
+  const BRANZA_TO_CATEGORY: Record<string, string> = {
+    hr: "HR", marketing: "Marketing", prawo: "Prawo", finanse: "Finanse",
+    it: "IT", edukacja: "Edukacja", budownictwo: "Budownictwo",
+    "e-commerce": "E-commerce", ecommerce: "E-commerce", zdrowie: "Zdrowie",
+    biznes: "Biznes",
+  };
+  const similarCategory = branza ? (BRANZA_TO_CATEGORY[branza.toLowerCase()] ?? "") : "";
+  const similarAgents = noScoreAtAll && similarCategory
+    ? allAgents
+        .filter((a) => a.category === similarCategory)
+        .sort((a, b) => b.runsCount - a.runsCount)
+        .slice(0, 4)
+    : [];
+  const categoryCount = similarCategory
+    ? allAgents.filter((a) => a.category === similarCategory).length
+    : 0;
+
+  // contextual CTA label
+  const ctaLabel = branza
+    ? `Stwórz agenta dla branży ${branza} →`
+    : budzet2 !== null && budzet2 === 0
+    ? "Stwórz darmowego agenta →"
+    : "Zaprojektuj nowego agenta →";
+
+  // refinement suggestions (max 3)
+  const refinements: { label: string; href: string }[] = [];
+  if (budzet2 !== null) {
+    const p = new URLSearchParams();
+    if (query) p.set("q", query);
+    if (branza) p.set("branza", branza);
+    if (cel) p.set("cel", cel);
+    refinements.push({ label: "Usuń filtr budżetu", href: `/results?${p.toString()}` });
+  }
+  if (branza) {
+    const p = new URLSearchParams();
+    if (query) p.set("q", query);
+    if (cel) p.set("cel", cel);
+    if (budzet2 !== null) p.set("budzet", String(budzet2));
+    refinements.push({ label: `Szukaj bez filtru branży "${branza}"`, href: `/results?${p.toString()}` });
+  }
+  if (query && !words.some((w) => w.startsWith("darmow"))) {
+    const p = new URLSearchParams();
+    p.set("q", `${query} darmowy`);
+    if (branza) p.set("branza", branza);
+    if (cel) p.set("cel", cel);
+    refinements.push({ label: "Szukaj tylko darmowych agentów", href: `/results?${p.toString()}` });
+  }
+
   const best = results[0];
   const sectionHeading = buildHeading(branza, budzet2, query);
   const budzetStr = sp.budzet ?? "";
@@ -450,30 +500,130 @@ export default async function ResultsPage({
 
       {/* Section 4: fallback */}
       {!hasGoodMatch && (
-        <section className="mb-8">
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm text-3xl">
-              🔍
+        <section className="mb-8 space-y-4">
+          {/* Main fallback card */}
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8">
+            <div className="flex items-start gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white shadow-sm text-3xl">
+                🔍
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-extrabold text-slate-800">
+                  Nie znaleziono idealnego agenta
+                </h3>
+                {/* counter */}
+                <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+                  {categoryCount > 0
+                    ? `Na platformie mamy ${categoryCount} agent${categoryCount === 1 ? "a" : "ów"} w kategorii ${similarCategory} — żaden nie pasuje dokładnie do Twojego opisu.`
+                    : query
+                    ? `Żaden z dostępnych agentów nie pasuje dokładnie do zapytania "${query}".`
+                    : "Żaden agent nie pasuje do podanych kryteriów."}
+                  {" "}Możesz zaprojektować własnego.
+                </p>
+
+                {/* refinement suggestions */}
+                {refinements.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="text-xs text-slate-400 self-center">Spróbuj:</span>
+                    {refinements.map((r) => (
+                      <Link key={r.href} href={r.href}
+                        className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:border-indigo-300 hover:text-indigo-700 transition-colors">
+                        {r.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <h3 className="text-lg font-extrabold text-slate-800">
-              Nie znaleziono idealnego agenta
-            </h3>
-            <p className="mt-2 text-sm text-slate-500 max-w-sm mx-auto leading-relaxed">
-              {query
-                ? `Żaden z dostępnych agentów nie pasuje dokładnie do zapytania "${query}".`
-                : "Żaden agent nie pasuje do podanych kryteriów."}
-              {" "}Możesz zaprojektować własnego agenta.
+          </div>
+
+          {/* Similar agents by category */}
+          {similarAgents.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">
+                Agenci podobni tematycznie · {similarCategory}
+              </h2>
+              <div className="space-y-2">
+                {similarAgents.map((agent) => (
+                  <div key={agent.id}
+                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-100 text-base">
+                        {CATEGORY_ICONS[agent.category] ?? "🤖"}
+                      </div>
+                      <div className="min-w-0">
+                        <Link href={`/agents/${agent.slug}`}
+                          className="font-semibold text-slate-900 hover:text-indigo-700 transition-colors text-sm">
+                          {agent.name}
+                        </Link>
+                        <p className="text-xs text-slate-400 line-clamp-1">{agent.tagline}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className={`text-xs font-bold ${agent.pricingType === "FREE" ? "text-emerald-600" : "text-slate-600"}`}>
+                        {priceLabel(agent)}
+                      </span>
+                      <Link href={`/agents/${agent.slug}/run`}
+                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-700 transition-colors">
+                        Uruchom →
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mini prefill form → /dashboard/new */}
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-6">
+            <p className="mb-4 text-sm font-bold text-indigo-800">
+              {ctaLabel.replace(" →", "")} — uzupełnij pola i przejdź do projektowania
             </p>
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-              <Link href={newAgentHref}
-                className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all hover:-translate-y-0.5">
-                Zaprojektuj nowego agenta →
-              </Link>
-              <Link href="/agents"
-                className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-                Przeglądaj katalog
-              </Link>
-            </div>
+            <form action="/dashboard/new" method="GET" className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Opis agenta</label>
+                <textarea
+                  name="prefill_desc"
+                  rows={2}
+                  defaultValue={query}
+                  placeholder="Co ma robić Twój agent?"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Branża</label>
+                  <input
+                    type="text"
+                    name="prefill_branza"
+                    defaultValue={branza}
+                    placeholder="np. HR, Marketing"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Cel</label>
+                  <input
+                    type="text"
+                    name="prefill_cel"
+                    defaultValue={cel}
+                    placeholder="np. automatyzacja, analiza"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <button
+                  type="submit"
+                  className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 transition-all hover:-translate-y-0.5">
+                  Kontynuuj projektowanie →
+                </button>
+                <Link href="/agents"
+                  className="text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">
+                  Przeglądaj katalog
+                </Link>
+              </div>
+            </form>
           </div>
         </section>
       )}
