@@ -69,6 +69,9 @@ export default function Navbar() {
               {role === "CREATOR" && (
                 <span className="hidden md:block">{navLink("/dashboard", "Dashboard")}</span>
               )}
+              {role === "USER" && (
+                <span className="hidden md:block">{navLink("/become-creator", "Zostań twórcą")}</span>
+              )}
               <span className="hidden md:block">{navLink("/account", "Konto")}</span>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
@@ -113,6 +116,7 @@ export default function Navbar() {
               <>
                 <Link href="/account" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-50 transition-colors">Konto</Link>
                 {role === "CREATOR" && <Link href="/dashboard" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-50 transition-colors">Dashboard</Link>}
+                {role === "USER" && <Link href="/become-creator" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-50 transition-colors">Zostań twórcą</Link>}
                 {role === "ADMIN" && <Link href="/admin" onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 font-medium text-slate-700 hover:bg-slate-50 transition-colors">Admin</Link>}
                 <button onClick={() => signOut({ callbackUrl: "/" })} className="rounded-xl px-3 py-2.5 text-left font-medium text-slate-700 hover:bg-slate-50 transition-colors">Wyloguj</button>
               </>
