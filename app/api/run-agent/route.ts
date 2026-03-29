@@ -174,26 +174,38 @@ export async function POST(req: Request) {
       }
     }
 
-    const result = await runAgent({
-      agentName: agent.name,
-      agentDescription: agent.description,
-      userInput,
-    });
+    let result: string;
+    try {
+      result = await runAgent({
+        agentName: agent.name,
+        agentDescription: agent.description,
+        userInput,
+      });
+    } catch (openaiError) {
+      console.error("POST /api/run-agent — OpenAI error:", openaiError);
+      return NextResponse.json({ error: "Nie udało się uruchomić agenta." }, { status: 500 });
+    }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.agent.update({
-        where: { id: agent.id },
-        data: { runsCount: { increment: 1 } },
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.agent.update({
+          where: { id: agent.id },
+          data: { runsCount: { increment: 1 } },
+        });
+        await tx.agentRun.create({
+          data: { agentId: agent.id, userId, inputJson: userInput, outputText: result },
+        });
       });
-      await tx.agentRun.create({
-        data: { agentId: agent.id, userId, inputJson: userInput, outputText: result },
-      });
-    });
+    } catch (dbError) {
+      console.error("POST /api/run-agent — DB transaction error:", dbError);
+      // result already computed — still return it, state may be stale
+      return NextResponse.json({ result, isAuthenticated: true });
+    }
 
     const state = await getAgentState(agentSlug, userId);
     return NextResponse.json({ result, ...state, isAuthenticated: true });
   } catch (error) {
-    console.error("POST /api/run-agent error:", error);
+    console.error("POST /api/run-agent — unexpected error:", error);
     return NextResponse.json({ error: "Nie udało się uruchomić agenta." }, { status: 500 });
   }
 }
