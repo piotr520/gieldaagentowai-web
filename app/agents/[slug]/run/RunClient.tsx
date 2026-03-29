@@ -102,7 +102,7 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
     setError("");
 
     try {
-      const res = await fetch("/api/purchase", {
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agentSlug: slug }),
@@ -114,7 +114,9 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
         return;
       }
 
-      await fetchState();
+      if (data.url) {
+        window.location.href = data.url;
+      }
     } catch {
       setError("Nie udało się przetworzyć zakupu.");
     } finally {
@@ -269,7 +271,7 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
                       >
                         {purchasing ? "Przetwarzanie..." : `Kup dostęp — ${state?.pricingLabel}`}
                       </button>
-                      <p className="mt-2 text-xs text-amber-600">Symulacja zakupu (Stripe wkrótce)</p>
+                      <p className="mt-2 text-xs text-amber-600">Bezpieczna płatność przez Stripe</p>
                     </div>
                   )}
                 </div>
