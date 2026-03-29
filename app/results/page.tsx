@@ -18,28 +18,13 @@ type Agent = {
   runsCount: number;
 };
 
-function scoreAgent(agent: Agent, words: string[], branza: string, cel: string): number {
-  let score = 0;
-  const name = agent.name.toLowerCase();
-  const tagline = agent.tagline.toLowerCase();
-  const cat = agent.category.toLowerCase();
-  const desc = agent.description.toLowerCase();
+type ScoredAgent = Agent & {
+  score: number;
+  matchTags: string[];
+  reasonParts: string[];
+};
 
-  for (const w of words) {
-    if (name.includes(w)) score += 6;
-    if (tagline.includes(w)) score += 4;
-    if (cat.includes(w)) score += 3;
-    if (desc.includes(w)) score += 1;
-  }
-  if (branza && cat.includes(branza.toLowerCase())) score += 5;
-  if (cel) {
-    for (const w of cel.toLowerCase().split(/\s+/).filter((x) => x.length > 1)) {
-      if (tagline.includes(w)) score += 2;
-      if (desc.includes(w)) score += 1;
-    }
-  }
-  return score;
-}
+// --- scoring ---
 
 function lowestPrice(agent: Agent): number {
   if (agent.pricingType === "FREE") return 0;
@@ -50,6 +35,123 @@ function lowestPrice(agent: Agent): number {
 function priceLabel(agent: Agent): string {
   if (agent.pricingType === "FREE") return "Darmowy";
   return agent.pricingLabel;
+}
+
+function scoreAgent(
+  agent: Agent,
+  words: string[],
+  phrase: string,
+  branza: string,
+  cel: string,
+  budzet: number | null,
+): ScoredAgent {
+  let score = 0;
+  const matchTags: string[] = [];
+  const reasonParts: string[] = [];
+
+  const name = agent.name.toLowerCase();
+  const tagline = agent.tagline.toLowerCase();
+  const cat = agent.category.toLowerCase();
+  const desc = agent.description.toLowerCase();
+
+  // exact phrase bonus
+  if (phrase.length > 3) {
+    if (name.includes(phrase)) { score += 10; }
+    else if (tagline.includes(phrase)) { score += 7; }
+    else if (desc.includes(phrase)) { score += 3; }
+  }
+
+  // per-word scoring
+  for (const w of words) {
+    if (name.includes(w)) { score += 6; matchTags.push(w); }
+    else if (tagline.includes(w)) { score += 4; matchTags.push(w); }
+    else if (cat.includes(w)) { score += 3; matchTags.push(w); }
+    else if (desc.includes(w)) { score += 1; }
+  }
+
+  // branza
+  if (branza && cat.includes(branza.toLowerCase())) {
+    score += 5;
+    reasonParts.push(`kategoria pasuje do branży "${branza}"`);
+  }
+
+  // cel keywords
+  if (cel) {
+    for (const w of cel.toLowerCase().split(/\s+/).filter((x) => x.length > 1)) {
+      if (tagline.includes(w)) score += 2;
+      if (desc.includes(w)) score += 1;
+    }
+  }
+
+  // popularity bonus (log scale, max ~4 pts at 1000 runs)
+  if (agent.runsCount > 0) {
+    const pop = Math.min(4, Math.floor(Math.log10(agent.runsCount + 1) * 2));
+    score += pop;
+    if (agent.runsCount >= 100) reasonParts.push(`${agent.runsCount.toLocaleString("pl-PL")} uruchomień`);
+  }
+
+  // budget penalty
+  if (budzet !== null) {
+    const price = lowestPrice(agent);
+    if (price > budzet * 1.2) {
+      score -= 3;
+    } else if (price <= budzet) {
+      score += 2;
+      if (agent.pricingType !== "FREE") reasonParts.push(`cena mieści się w budżecie ${budzet} zł`);
+    }
+  }
+
+  // free bonus if query contains "darmow" or "bezpłatn"
+  const queryHintFree = words.some((w) => w.startsWith("darmow") || w.startsWith("bezpłatn"));
+  if (queryHintFree && agent.pricingType === "FREE") {
+    score += 4;
+    reasonParts.push("darmowy dostęp");
+  }
+
+  // deduplicate match tags
+  const uniqueTags = [...new Set(matchTags)].slice(0, 5);
+
+  return { ...agent, score, matchTags: uniqueTags, reasonParts };
+}
+
+// --- heading ---
+
+function buildHeading(branza: string, budzet: number | null, query: string): string {
+  if (branza && budzet !== null) return `Najlepszy agent ${branza} w budżecie do ${budzet} zł`;
+  if (branza) return `Najlepszy agent dla branży ${branza}`;
+  if (budzet !== null) return `Najlepszy agent w budżecie do ${budzet} zł`;
+  if (query) {
+    const short = query.length > 40 ? query.slice(0, 40) + "…" : query;
+    return `Najlepsze dopasowanie dla: "${short}"`;
+  }
+  return "Najlepsze dopasowanie";
+}
+
+// --- reason sentence ---
+
+function buildReason(agent: ScoredAgent, words: string[], branza: string): string {
+  const parts: string[] = [];
+
+  if (agent.matchTags.length > 0) {
+    parts.push(`Słowa kluczowe pasują do nazwy lub opisu agenta`);
+  }
+  if (branza && agent.category.toLowerCase().includes(branza.toLowerCase())) {
+    parts.push(`specjalizuje się w branży ${branza}`);
+  }
+  if (agent.pricingType === "FREE") {
+    parts.push("dostępny bezpłatnie");
+  }
+  if (agent.runsCount >= 50) {
+    parts.push(`sprawdzony przez ${agent.runsCount.toLocaleString("pl-PL")} użytkowników`);
+  }
+  if (agent.reasonParts.length > 0) {
+    for (const r of agent.reasonParts) {
+      if (!parts.includes(r)) parts.push(r);
+    }
+  }
+
+  if (parts.length === 0) return `Pasuje do kategorii ${agent.category}.`;
+  return parts.join(" · ") + ".";
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -67,7 +169,8 @@ export default async function ResultsPage({
   const query = (sp.q ?? "").trim();
   const branza = (sp.branza ?? "").trim();
   const cel = (sp.cel ?? "").trim();
-  const budzet = (sp.budzet ?? "").trim();
+  const budzet = sp.budzet ? Number(sp.budzet) : null;
+  const budzet2 = budzet !== null && !isNaN(budzet) ? budzet : null;
 
   if (!query && !branza && !cel) redirect("/agents");
 
@@ -80,10 +183,11 @@ export default async function ResultsPage({
     },
   });
 
-  const words = query.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+  const phrase = query.toLowerCase();
+  const words = phrase.split(/\s+/).filter((w) => w.length > 1);
 
   const scored = allAgents
-    .map((a) => ({ ...a, score: scoreAgent(a, words, branza, cel) }))
+    .map((a) => scoreAgent(a, words, phrase, branza, cel, budzet2))
     .sort((a, b) => b.score !== a.score ? b.score - a.score : b.runsCount - a.runsCount);
 
   const hasMatches = scored.some((a) => a.score > 0);
@@ -92,14 +196,20 @@ export default async function ResultsPage({
   const hasGoodMatch = results.length > 0 && results[0].score >= GOOD_MATCH_THRESHOLD;
 
   // badge indices
-  const bestIdx = 0;
   const cheapestIdx = results.reduce(
     (best, a, i) => (lowestPrice(a) < lowestPrice(results[best]) ? i : best),
     0
   );
   const freeIdx = results.findIndex((a) => a.pricingType === "FREE");
 
-  // build prefill params for /dashboard/new
+  // comparison: show top 2–3 if scores are close (gap < 4)
+  const showComparison =
+    hasGoodMatch &&
+    results.length >= 2 &&
+    results[0].score - results[1].score < 4;
+  const compareAgents = showComparison ? results.slice(0, Math.min(3, results.length)) : [];
+
+  // prefill params for /dashboard/new
   const prefillParams = new URLSearchParams();
   if (query) prefillParams.set("prefill_desc", query);
   if (branza) prefillParams.set("prefill_branza", branza);
@@ -107,6 +217,8 @@ export default async function ResultsPage({
   const newAgentHref = `/dashboard/new?${prefillParams.toString()}`;
 
   const best = results[0];
+  const sectionHeading = buildHeading(branza, budzet2, query);
+  const budzetStr = sp.budzet ?? "";
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
@@ -125,7 +237,7 @@ export default async function ResultsPage({
           </div>
           {branza && <input type="hidden" name="branza" value={branza} />}
           {cel && <input type="hidden" name="cel" value={cel} />}
-          {budzet && <input type="hidden" name="budzet" value={budzet} />}
+          {budzetStr && <input type="hidden" name="budzet" value={budzetStr} />}
           <button type="submit"
             className="rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white hover:bg-indigo-700 transition-colors shrink-0">
             Szukaj
@@ -137,14 +249,15 @@ export default async function ResultsPage({
             : `${results.length} agent${results.length === 1 ? "" : "ów"} dopasowanych`}
           {query && <> · zapytanie: <span className="font-medium text-slate-700">{query}</span></>}
           {branza && <> · branża: <span className="font-medium text-slate-700">{branza}</span></>}
+          {budzet2 !== null && <> · budżet: <span className="font-medium text-slate-700">do {budzet2} zł</span></>}
         </p>
       </form>
 
-      {/* Section 1: AI recommendation */}
+      {/* Section 1: best match */}
       {hasGoodMatch && best && (
         <section className="mb-8">
           <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-indigo-500">
-            Najlepsze dopasowanie
+            {sectionHeading}
           </h2>
           <div className="rounded-2xl border border-indigo-300 bg-gradient-to-br from-indigo-50 to-violet-50 p-6 shadow-sm ring-1 ring-indigo-200">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -161,12 +274,23 @@ export default async function ResultsPage({
                     {best.name}
                   </Link>
                   <p className="mt-1 text-sm text-slate-600 leading-relaxed">{best.tagline}</p>
+
+                  {/* match tags */}
+                  {best.matchTags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {best.matchTags.map((tag) => (
+                        <span key={tag}
+                          className="inline-flex rounded-full border border-indigo-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* reason */}
                   <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-                    Pasuje do Twojego zapytania — specjalizuje się w kategorii{" "}
-                    <span className="font-semibold text-slate-700">{best.category}</span>
-                    {best.runsCount > 0 && (
-                      <> i ma <span className="font-semibold text-slate-700">{best.runsCount.toLocaleString("pl-PL")} uruchomień</span></>
-                    )}.
+                    <span className="font-semibold text-slate-600">Dlaczego rekomendujemy: </span>
+                    {buildReason(best, words, branza)}
                   </p>
                 </div>
               </div>
@@ -184,7 +308,70 @@ export default async function ResultsPage({
         </section>
       )}
 
-      {/* Section 2: ranking */}
+      {/* Section 2: comparison table (top 2–3, only when scores are close) */}
+      {showComparison && compareAgents.length >= 2 && (
+        <section className="mb-8">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-400">
+            Porównanie najlepszych dopasowań
+          </h2>
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Agent</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Kategoria</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Cena</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Uruchomień</th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Dopasowanie</th>
+                </tr>
+              </thead>
+              <tbody>
+                {compareAgents.map((agent, i) => {
+                  const maxScore = compareAgents[0].score;
+                  const pct = maxScore > 0 ? Math.round((agent.score / maxScore) * 100) : 0;
+                  return (
+                    <tr key={agent.id} className={`border-b border-slate-50 last:border-0 ${i === 0 ? "bg-indigo-50/40" : ""}`}>
+                      <td className="px-4 py-3">
+                        <Link href={`/agents/${agent.slug}`}
+                          className="font-semibold text-slate-900 hover:text-indigo-700 transition-colors">
+                          {agent.name}
+                        </Link>
+                        {i === 0 && (
+                          <span className="ml-2 inline-flex rounded-full bg-indigo-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                            #1
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {CATEGORY_ICONS[agent.category] ?? "🤖"} {agent.category}
+                      </td>
+                      <td className={`px-4 py-3 font-semibold ${agent.pricingType === "FREE" ? "text-emerald-600" : "text-slate-700"}`}>
+                        {priceLabel(agent)}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">
+                        ⚡ {agent.runsCount.toLocaleString("pl-PL")}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${i === 0 ? "bg-indigo-500" : "bg-slate-400"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-500">{pct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Section 3: ranked list (others) */}
       {results.length > 0 && (
         <section className="mb-8">
           {hasGoodMatch && results.length > 1 && (
@@ -197,7 +384,7 @@ export default async function ResultsPage({
               const i = hasGoodMatch ? idx + 1 : idx;
               const badges: { label: string; color: string }[] = [];
               if (i === cheapestIdx) badges.push({ label: "Najtańszy", color: "bg-emerald-600 text-white" });
-              if (i === freeIdx && freeIdx !== bestIdx) badges.push({ label: "Najszybszy", color: "bg-amber-500 text-white" });
+              if (i === freeIdx && freeIdx !== 0) badges.push({ label: "Darmowy", color: "bg-amber-500 text-white" });
               const icon = CATEGORY_ICONS[agent.category] ?? "🤖";
 
               return (
@@ -227,6 +414,19 @@ export default async function ResultsPage({
                           {agent.name}
                         </Link>
                         <p className="mt-0.5 text-xs text-slate-500 line-clamp-2 leading-relaxed">{agent.tagline}</p>
+
+                        {/* match tags for secondary results */}
+                        {agent.matchTags.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {agent.matchTags.map((tag) => (
+                              <span key={tag}
+                                className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
                         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
                           <span className="font-medium text-slate-600">{agent.category}</span>
                           <span>⚡ {agent.runsCount.toLocaleString("pl-PL")}</span>
@@ -248,7 +448,7 @@ export default async function ResultsPage({
         </section>
       )}
 
-      {/* Section 3: fallback */}
+      {/* Section 4: fallback */}
       {!hasGoodMatch && (
         <section className="mb-8">
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
@@ -278,7 +478,7 @@ export default async function ResultsPage({
         </section>
       )}
 
-      {/* Always show design CTA if there are results too */}
+      {/* Always show design CTA if there are results */}
       {hasGoodMatch && results.length > 0 && (
         <div className="rounded-xl border border-slate-100 bg-slate-50 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-slate-600">
@@ -295,7 +495,7 @@ export default async function ResultsPage({
         <Link href="/agents" className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
           ← Cały katalog
         </Link>
-        <p className="text-xs text-slate-400">Ranking wg trafności · runsCount</p>
+        <p className="text-xs text-slate-400">Ranking wg trafności · popularności · budżetu</p>
       </div>
     </main>
   );
