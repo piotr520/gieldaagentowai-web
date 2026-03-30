@@ -28,6 +28,8 @@ export default async function AgentPage({
       pricingLabel: true,
       pricingAmountPln: true,
       pricingAmountPlnPerMonth: true,
+      pricePerUse: true,
+      freeRuns: true,
       limitationsJson: true,
       examplesJson: true,
       runsCount: true,
@@ -156,7 +158,12 @@ export default async function AgentPage({
             <div className="mb-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Model cenowy</p>
               <div className="flex items-baseline gap-1.5">
-                {agent.pricingAmountPln ? (
+                {agent.pricingType === "PAY_PER_USE" ? (
+                  <>
+                    <span className="text-4xl font-extrabold text-amber-600">{agent.pricePerUse ?? "?"} zł</span>
+                    <span className="text-sm text-slate-500">/ użycie</span>
+                  </>
+                ) : agent.pricingAmountPln ? (
                   <>
                     <span className="text-4xl font-extrabold text-slate-900">{agent.pricingAmountPln} zł</span>
                     <span className="text-sm text-slate-500">jednorazowo</span>
@@ -171,7 +178,9 @@ export default async function AgentPage({
                 )}
               </div>
               {agent.pricingType !== "FREE" && (
-                <p className="mt-1.5 text-xs text-indigo-600 font-medium">✦ Pierwsze 3 uruchomienia gratis</p>
+                <p className="mt-1.5 text-xs text-indigo-600 font-medium">
+                  ✦ Pierwsze {agent.freeRuns ?? 3} uruchomienia gratis
+                </p>
               )}
             </div>
 

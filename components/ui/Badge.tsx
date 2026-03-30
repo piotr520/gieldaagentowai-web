@@ -35,6 +35,8 @@ export function PricingBadge({ type, label }: { type: string; label: string }) {
     return <Badge variant="green">✦ {label}</Badge>;
   if (type === "SUBSCRIPTION")
     return <Badge variant="violet">♾ {label}</Badge>;
+  if (type === "PAY_PER_USE")
+    return <Badge variant="amber">⚡ {label}</Badge>;
   return <Badge variant="indigo">◈ {label}</Badge>;
 }
 

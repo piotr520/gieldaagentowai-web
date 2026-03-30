@@ -3,7 +3,7 @@ import { runAgent } from "../../../lib/openai";
 import { prisma } from "../../../lib/prisma";
 import { getSession } from "../../../lib/auth";
 
-const FREE_LIMIT = 3;
+const FREE_RUNS_DEFAULT = 3;
 
 // Rate limiting: 10 POST requests per user per minute (in-memory, per instance)
 const RATE_LIMIT_MAX = 10;
@@ -43,26 +43,44 @@ async function getAgentState(agentSlug: string, userId: string | null) {
       id: true, slug: true, name: true, description: true,
       runsCount: true, pricingType: true, pricingLabel: true,
       pricingAmountPln: true, pricingAmountPlnPerMonth: true,
+      pricePerUse: true, freeRuns: true,
     },
   });
 
   if (!agent) return null;
 
+  const freeLimit = agent.freeRuns ?? FREE_RUNS_DEFAULT;
   const isFree = agent.pricingType === "FREE";
-
-  const hasAccess = userId
-    ? (isFree || !!(await prisma.agentAccess.findUnique({
-        where: { userId_agentId: { userId, agentId: agent.id } },
-      })))
-    : false;
+  const isPayPerUse = agent.pricingType === "PAY_PER_USE";
 
   const userRunCount = userId
     ? await prisma.agentRun.count({ where: { agentId: agent.id, userId } })
     : 0;
 
-  const usedFreeRuns = userId ? Math.min(userRunCount, FREE_LIMIT) : 0;
-  const remainingFreeRuns =
-    hasAccess || isFree ? FREE_LIMIT : Math.max(0, FREE_LIMIT - userRunCount);
+  // Paid credits (FakePayment = 1 purchased run each)
+  const paidCredits = userId && isPayPerUse
+    ? await prisma.fakePayment.count({ where: { agentId: agent.id, userId } })
+    : 0;
+
+  let hasAccess = false;
+  if (isFree) {
+    hasAccess = !!userId;
+  } else if (isPayPerUse) {
+    const totalAvailable = freeLimit + paidCredits;
+    hasAccess = userId ? userRunCount < totalAvailable : false;
+  } else {
+    // ONE_TIME or SUBSCRIPTION — check AgentAccess record
+    hasAccess = userId
+      ? !!(await prisma.agentAccess.findUnique({
+          where: { userId_agentId: { userId, agentId: agent.id } },
+        }))
+      : false;
+  }
+
+  const usedFreeRuns = Math.min(userRunCount, freeLimit);
+  const remainingFreeRuns = isFree
+    ? freeLimit
+    : Math.max(0, freeLimit - userRunCount);
 
   const latestRuns = await prisma.agentRun.findMany({
     where: { agentId: agent.id, ...(userId ? { userId } : {}) },
@@ -86,9 +104,11 @@ async function getAgentState(agentSlug: string, userId: string | null) {
     pricingLabel: agent.pricingLabel,
     pricingAmountPln: agent.pricingAmountPln,
     pricingAmountPlnPerMonth: agent.pricingAmountPlnPerMonth,
-    freeLimit: FREE_LIMIT,
+    pricePerUse: agent.pricePerUse,
+    freeLimit,
     usedFreeRuns,
     remainingFreeRuns,
+    paidCredits,
     hasAccess,
     latestRuns: runs,
   };
@@ -128,10 +148,7 @@ export async function POST(req: Request) {
     if (!allowed) {
       return NextResponse.json(
         { error: `Zbyt wiele żądań. Spróbuj ponownie za ${retryAfterSec} s.` },
-        {
-          status: 429,
-          headers: { "Retry-After": String(retryAfterSec) },
-        }
+        { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
       );
     }
 
@@ -145,35 +162,75 @@ export async function POST(req: Request) {
 
     const agent = await prisma.agent.findUnique({
       where: { slug: agentSlug },
-      select: { id: true, name: true, description: true, status: true, pricingType: true },
+      select: {
+        id: true, name: true, description: true, status: true,
+        pricingType: true, pricePerUse: true, freeRuns: true,
+      },
     });
 
     if (!agent || agent.status !== "PUBLISHED") {
       return NextResponse.json({ error: "Nie znaleziono agenta." }, { status: 404 });
     }
 
+    const freeLimit = agent.freeRuns ?? FREE_RUNS_DEFAULT;
     const isFree = agent.pricingType === "FREE";
+    const isPayPerUse = agent.pricingType === "PAY_PER_USE";
 
-    const hasAccess = isFree
-      ? true
-      : !!(await prisma.agentAccess.findUnique({
-          where: { userId_agentId: { userId, agentId: agent.id } },
-        }));
+    // ── Access check ─────────────────────────────────────────────────────────
+    let hasAccess = false;
 
-    if (!hasAccess) {
+    if (isFree) {
+      hasAccess = true;
+    } else if (isPayPerUse) {
       const userRunCount = await prisma.agentRun.count({
         where: { agentId: agent.id, userId },
       });
+      if (userRunCount < freeLimit) {
+        hasAccess = true;
+      } else {
+        const paidCredits = await prisma.fakePayment.count({
+          where: { agentId: agent.id, userId },
+        });
+        const usedPaidRuns = userRunCount - freeLimit;
+        hasAccess = paidCredits > usedPaidRuns;
+      }
+    } else {
+      // ONE_TIME or SUBSCRIPTION — AgentAccess record required
+      hasAccess = !!(await prisma.agentAccess.findUnique({
+        where: { userId_agentId: { userId, agentId: agent.id } },
+      }));
 
-      if (userRunCount >= FREE_LIMIT) {
-        const state = await getAgentState(agentSlug, userId);
-        return NextResponse.json(
-          { error: "Limit darmowych użyć wyczerpany.", ...state, isAuthenticated: true },
-          { status: 403 }
-        );
+      if (!hasAccess) {
+        // Still allow free trial runs
+        const userRunCount = await prisma.agentRun.count({
+          where: { agentId: agent.id, userId },
+        });
+        hasAccess = userRunCount < freeLimit;
       }
     }
 
+    if (!hasAccess) {
+      const state = await getAgentState(agentSlug, userId);
+      if (isPayPerUse) {
+        return NextResponse.json(
+          {
+            error: "PAYWALL",
+            message: "Wymagana płatność za użycie",
+            pricePerUse: agent.pricePerUse,
+            requiresPayment: true,
+            ...state,
+            isAuthenticated: true,
+          },
+          { status: 402 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Limit darmowych użyć wyczerpany.", ...state, isAuthenticated: true },
+        { status: 403 }
+      );
+    }
+
+    // ── Run OpenAI ───────────────────────────────────────────────────────────
     let result: string;
     try {
       result = await runAgent({
@@ -186,6 +243,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Nie udało się uruchomić agenta." }, { status: 500 });
     }
 
+    // ── Save run ─────────────────────────────────────────────────────────────
     try {
       await prisma.$transaction(async (tx) => {
         await tx.agent.update({
