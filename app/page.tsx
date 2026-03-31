@@ -194,6 +194,67 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── Quick Start ───────────────────────────────────────────────── */}
+      <section className="bg-white px-6 py-14">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8 text-center">
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-indigo-500">Zacznij teraz</p>
+            <h2 className="text-3xl font-extrabold text-slate-900">Wypróbuj w 10 sekund</h2>
+            <p className="mt-2 text-sm text-slate-500">Bez rejestracji — kliknij i wklej swoje dane</p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-3">
+            {[
+              {
+                icon: "✉️",
+                title: "Odpowiedź na maila",
+                desc: "Wklej trudnego maila → dostaniesz gotową odpowiedź",
+                slug: "odpowiedz-na-reklamacje",
+                color: "from-blue-50 to-indigo-50",
+                border: "border-blue-100 hover:border-blue-300",
+                badge: "bg-blue-50 text-blue-600 border-blue-200",
+              },
+              {
+                icon: "🔍",
+                title: "Analiza konkurencji",
+                desc: "Wklej link do strony konkurenta → analiza i rekomendacje",
+                slug: "monitoring-konkurencji",
+                color: "from-violet-50 to-purple-50",
+                border: "border-violet-100 hover:border-violet-300",
+                badge: "bg-violet-50 text-violet-700 border-violet-200",
+              },
+              {
+                icon: "📄",
+                title: "Streszczenie artykułu",
+                desc: "Wklej URL lub tekst → kluczowe punkty w 30 sekund",
+                slug: "streszczenie-artykulu",
+                color: "from-emerald-50 to-teal-50",
+                border: "border-emerald-100 hover:border-emerald-300",
+                badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+              },
+            ].map((tile) => (
+              <Link
+                key={tile.slug}
+                href={`/agents/${tile.slug}/run`}
+                className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br ${tile.color} ${tile.border} p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-1`}
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-sm text-2xl border border-slate-100">
+                    {tile.icon}
+                  </span>
+                  <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${tile.badge}`}>
+                    Wypróbuj →
+                  </span>
+                </div>
+                <h3 className="mb-1.5 text-base font-extrabold text-slate-900 group-hover:text-indigo-700 transition-colors">
+                  {tile.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-slate-500">{tile.desc}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Featured agents ──────────────────────────────────────────── */}
       <section className="mx-auto max-w-7xl px-6 py-16">
         <div className="mb-8 flex items-end justify-between">
