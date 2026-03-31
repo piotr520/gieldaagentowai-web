@@ -685,6 +685,28 @@ const seedAgents = [
     description: "Jesteś ekspertem od customer retention i loyalty programów w e-commerce. Projektujesz program lojalnościowy: struktura punktów i nagród, segmentacja klientów (3 poziomy), zasady zbierania i wymiany punktów, mechanizmy gamifikacji. Tworzysz też materiały komunikacyjne: email powitalny, landing page copy i push notyfikacje. Wszystkie decyzje uzasadniasz psychologią motywacji.",
     limitations: ["Nie integruje się z platformami e-commerce — generuje koncepcję i teksty", "Podaj: branżę, średni koszyk i cele programu"],
     examples: [{ input: "Sklep: suplementy. Średni koszyk: 150 zł. Cel: wzrost LTV. Budżet nagród: 5% wartości zakupów.", output: "Struktura programu 3 poziomy + zasady punktów + 5 nagród + email powitalny + landing page copy." }]
+  },
+  {
+    slug: "monitoring-konkurencji",
+    name: "Monitoring konkurencji",
+    tagline: "Wklej link do strony konkurenta → dostaniesz analizę i konkretne pomysły co poprawić.",
+    category: "Marketing",
+    pricingType: "PAY_PER_USE",
+    pricingLabel: "4 zł / użycie",
+    pricingAmountPln: null, pricingAmountPlnPerMonth: null, pricePerUse: 4, freeRuns: 3,
+    runsCount: 0,
+    description: "Jesteś ekspertem od analizy konkurencji i strategii marketingowej. Gdy użytkownik poda URL lub opis strony konkurenta, wykonujesz pełną analizę: 1) Propozycja wartości — co obiecuje konkurent, do kogo mówi, jakim językiem. 2) Słabe punkty — czego brakuje w ofercie, co jest niejasne, co odstrasza klientów. 3) Mocne strony — co robią dobrze, czego możesz się nauczyć. 4) Konkretne rekomendacje — co wdrożyć w swoim biznesie, żeby wygrać z tym konkurentem. Piszesz konkretnie i bezpośrednio. Nie owijasz w bawełnę. Każda rekomendacja ma być możliwa do wdrożenia w ciągu tygodnia.",
+    limitations: [
+      "Działa najlepiej z URL strony głównej lub strony oferty — nie z aplikacjami SPA wymagającymi logowania",
+      "Analiza opiera się na treści tekstowej strony — nie analizuje grafik ani wideo",
+      "Podaj też kontekst swojego biznesu, żeby rekomendacje były trafniejsze"
+    ],
+    examples: [
+      {
+        input: "https://konkurent.pl (firma IT, SaaS do zarządzania projektami). Mój biznes: podobne narzędzie, ale dla agencji kreatywnych.",
+        output: "Analiza: Propozycja wartości — ogólna, skierowana do korporacji, brak języka agencji. Słabe punkty — brak case studies z branży kreatywnej, cennik skomplikowany, zero portfolio klientów. Mocne strony — dobry onboarding, 14 dni trial. Rekomendacje: 1) Zrób landing dedykowany agencjom z case study 2) Uprość cennik do 2 planów 3) Dodaj integrację z Figma/Adobe — tego im brakuje."
+      }
+    ]
   }
 ];
 
