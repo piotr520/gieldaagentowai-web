@@ -268,6 +268,22 @@ export default async function AgentPage({
               )}
             </div>
 
+            {/* Sample output — shown when first example has output */}
+            {examples[0]?.output && (
+              <div className="mb-5">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Taki wynik otrzymasz:
+                </p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 max-h-52 overflow-y-auto">
+                  <pre className="whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-slate-700">
+                    {examples[0].output.length > 320
+                      ? examples[0].output.slice(0, 320) + "\n…"
+                      : examples[0].output}
+                  </pre>
+                </div>
+              </div>
+            )}
+
             <Link
               href={`/agents/${agent.slug}/run`}
               className="block w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3.5 text-center text-sm font-bold text-white shadow-md shadow-indigo-200 transition-all hover:from-indigo-500 hover:to-violet-500 hover:-translate-y-0.5 hover:shadow-lg"
