@@ -41,8 +41,10 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
   const [purchasing, setPurchasing] = useState(false);
   const [state, setState] = useState<AgentState | null>(null);
   const [loadingState, setLoadingState] = useState(true);
+  const [copied, setCopied] = useState(false);
   const inFlight = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const resultRef = useRef<HTMLParagraphElement>(null);
 
   async function fetchState() {
     try {
@@ -121,6 +123,37 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
       setError("Nie udało się przetworzyć zakupu.");
     } finally {
       setPurchasing(false);
+    }
+  }
+
+  function isEmailResult(text: string): boolean {
+    return /^Temat:/m.test(text) || /^Subject:/m.test(text);
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(result);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: select text
+      resultRef.current?.focus?.();
+    }
+  }
+
+  function handleUse() {
+    if (isEmailResult(result)) {
+      const subjectMatch = result.match(/^(?:Temat|Subject):\s*(.+)/m);
+      const subject = subjectMatch ? subjectMatch[1].trim() : "";
+      // Strip "Temat: ..." line from body so it's not duplicated
+      const body = result.replace(/^(?:Temat|Subject):[^\n]*\n?/m, "").trim();
+      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    } else if (resultRef.current && window.getSelection) {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(resultRef.current);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
     }
   }
 
@@ -284,7 +317,26 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
                     <span className="text-sm font-semibold text-slate-600">{agentName}</span>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{result}</p>
+                    <p ref={resultRef} className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{result}</p>
+                  </div>
+                  {/* Post-output actions */}
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition-colors hover:border-indigo-300 hover:text-indigo-600"
+                    >
+                      {copied ? (
+                        <><span className="text-emerald-500">✓</span> Skopiowano</>
+                      ) : (
+                        <><span>⎘</span> Kopiuj</>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleUse}
+                      className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100"
+                    >
+                      {isEmailResult(result) ? "✉ Wyślij jako email →" : "⌥ Zaznacz tekst"}
+                    </button>
                   </div>
                 </div>
               ) : (
