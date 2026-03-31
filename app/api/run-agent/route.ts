@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAgent } from "../../../lib/openai";
 import { prisma } from "../../../lib/prisma";
 import { getSession } from "../../../lib/auth";
+import {
+  isProbablyUrl,
+  fetchPageContent,
+  extractReadableText,
+} from "../../../lib/url-utils";
 
 const FREE_RUNS_DEFAULT = 3;
 
@@ -160,6 +165,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Brak wymaganych pól: agentSlug, input." }, { status: 400 });
     }
 
+    // ── URL ingestion ────────────────────────────────────────────────────────
+    // If the input looks like a URL, fetch the page and use its text content.
+    // The original URL is preserved as sourceUrl for the model context and saved
+    // to run history so the sidebar shows the URL (not the raw extracted text).
+    let resolvedInput = userInput;
+    let sourceUrl: string | null = null;
+
+    if (isProbablyUrl(userInput)) {
+      sourceUrl = userInput;
+      try {
+        const html = await fetchPageContent(userInput);
+        const extracted = extractReadableText(html);
+        if (extracted.length < 50) {
+          return NextResponse.json(
+            {
+              error:
+                "Nie udało się pobrać treści strony. Wklej treść ręcznie albo spróbuj innego linku.",
+            },
+            { status: 422 }
+          );
+        }
+        resolvedInput = extracted;
+      } catch (urlErr) {
+        const msg = urlErr instanceof Error ? urlErr.message : "";
+        console.error("POST /api/run-agent — URL fetch error:", msg);
+        if (msg === "BLOCKED_HOST" || msg === "UNSAFE_PROTOCOL") {
+          return NextResponse.json(
+            { error: "Ten adres URL jest niedozwolony." },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json(
+          {
+            error:
+              "Nie udało się pobrać treści strony. Wklej treść ręcznie albo spróbuj innego linku.",
+          },
+          { status: 422 }
+        );
+      }
+    }
+
+    // ── Load agent ───────────────────────────────────────────────────────────
     const agent = await prisma.agent.findUnique({
       where: { slug: agentSlug },
       select: {
@@ -236,7 +283,8 @@ export async function POST(req: Request) {
       result = await runAgent({
         agentName: agent.name,
         agentDescription: agent.description,
-        userInput,
+        userInput: resolvedInput,
+        sourceUrl,
       });
     } catch (openaiError) {
       console.error("POST /api/run-agent — OpenAI error:", openaiError);
@@ -244,6 +292,8 @@ export async function POST(req: Request) {
     }
 
     // ── Save run ─────────────────────────────────────────────────────────────
+    // Store the original userInput (URL or plain text) — not the extracted content.
+    // This keeps the history sidebar clean and readable.
     try {
       await prisma.$transaction(async (tx) => {
         await tx.agent.update({

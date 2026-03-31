@@ -316,7 +316,7 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
                       ref={textareaRef}
                       className="flex-1 resize-none bg-transparent text-sm text-slate-900 placeholder-slate-400 outline-none leading-relaxed"
                       rows={2}
-                      placeholder="Opisz zadanie dla agenta..."
+                      placeholder="Opisz zadanie lub wklej link (https://...)..."
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
