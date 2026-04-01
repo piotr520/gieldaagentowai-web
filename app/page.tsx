@@ -41,125 +41,86 @@ export default async function HomePage() {
     <main>
       {/* ── Hero ─────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 px-6 pb-24 pt-20 text-white">
-        {/* Decorative glows */}
         <div className="pointer-events-none absolute -top-40 left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-indigo-600/25 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-violet-600/20 blur-3xl" />
-        <div className="pointer-events-none absolute left-0 top-1/2 h-48 w-48 -translate-y-1/2 rounded-full bg-indigo-500/10 blur-2xl" />
 
-        <div className="relative mx-auto max-w-7xl">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            {/* Left */}
-            <div>
-              {/* ── Primary search ─────────────────────────────────── */}
-              <SearchForm />
+        <div className="relative mx-auto max-w-2xl text-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold text-indigo-300 backdrop-blur">
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
+            AI Marketplace
+          </div>
 
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold text-indigo-300 backdrop-blur">
-                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                AI Marketplace
+          <h1 className="mb-4 text-4xl font-extrabold leading-[1.1] tracking-tight md:text-5xl">
+            Zrób ofertę, maila albo<br />
+            <span className="gradient-text">analizę w 30 sekund</span>
+          </h1>
+          <p className="mb-10 text-base leading-relaxed text-slate-300 md:text-lg">
+            Opisz co chcesz zrobić — AI przygotuje gotowy wynik,<br className="hidden sm:block" />
+            który możesz od razu wysłać.
+          </p>
+
+          <SearchForm />
+        </div>
+      </section>
+
+      {/* ── "Zobacz co dostaniesz" ────────────────────────────────────── */}
+      <section className="bg-slate-50 px-6 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-10 text-center">
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-indigo-500">Przykładowy wynik</p>
+            <h2 className="text-3xl font-extrabold text-slate-900">Zobacz co dostaniesz</h2>
+            <p className="mt-2 text-sm text-slate-500">Gotowy dokument — w kilka sekund, bez pisania od zera</p>
+          </div>
+
+          <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-md">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Wygenerowany wynik</p>
+                <h3 className="mt-0.5 text-base font-extrabold text-slate-900">Oferta B2B – usługi koparką</h3>
               </div>
-              <h1 className="text-5xl font-extrabold leading-[1.1] tracking-tight md:text-6xl">
-                Odkryj agentów AI<br />
-                <span className="gradient-text">nowej generacji</span>
-              </h1>
-              <p className="mt-6 max-w-lg text-lg leading-relaxed text-slate-300">
-                Przeglądaj, uruchamiaj i kupuj agentów AI stworzonych przez ekspertów.
-                Każdy agent gotowy do użycia — bez konfiguracji, bez kodu.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  href="/agents"
-                  className="rounded-xl bg-indigo-600 px-7 py-3.5 text-sm font-bold text-white shadow-xl shadow-indigo-900/50 transition-all hover:bg-indigo-500 hover:-translate-y-0.5 hover:shadow-indigo-900/70"
-                >
-                  Przeglądaj agentów →
-                </Link>
-                <Link
-                  href="/register"
-                  className="rounded-xl border border-white/20 bg-white/10 px-7 py-3.5 text-sm font-bold text-white backdrop-blur transition-all hover:bg-white/20 hover:-translate-y-0.5"
-                >
-                  Zarejestruj się za darmo
-                </Link>
-              </div>
-              <p className="mt-5 text-xs text-slate-500">
-                Już ponad 200 agentów · 3 darmowe uruchomienia dla każdego
-              </p>
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                Gotowe ✓
+              </span>
             </div>
 
-            {/* Right: floating card mockup */}
-            <div className="hidden lg:block">
-              <div className="relative ml-auto max-w-sm">
-                {/* Background card */}
-                <div className="absolute -bottom-4 -right-4 w-full rounded-2xl border border-slate-700/60 bg-slate-800/80 p-4 shadow-2xl backdrop-blur">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/30 to-violet-500/10 text-xl border border-violet-500/20">💰</div>
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Finanse</p>
-                      <p className="text-sm font-bold text-white">Analizator budżetu</p>
-                    </div>
-                    <span className="rounded-full border border-violet-400/30 bg-violet-400/10 px-2 py-0.5 text-xs text-violet-300">Sub</span>
-                  </div>
-                </div>
-                {/* Middle card */}
-                <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-64 rounded-2xl border border-slate-700/60 bg-slate-800/80 p-4 shadow-2xl backdrop-blur">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500/30 to-emerald-500/10 text-xl border border-emerald-500/20">📢</div>
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Marketing</p>
-                      <p className="text-sm font-bold text-white">Copywriter AI</p>
-                    </div>
-                    <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-xs text-emerald-300">Free</span>
-                  </div>
-                </div>
-                {/* Front card */}
-                <div className="relative rounded-2xl border border-indigo-500/30 bg-slate-800/90 p-5 shadow-2xl backdrop-blur ring-1 ring-indigo-500/20">
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/30 to-indigo-500/10 text-xl border border-indigo-500/20">💼</div>
-                      <div>
-                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Biznes</p>
-                        <p className="text-sm font-bold text-white">Asystent biznesowy</p>
-                      </div>
-                    </div>
-                    <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 text-xs text-amber-300">🔥 Top</span>
-                  </div>
-                  <p className="text-xs leading-relaxed text-slate-400">Automatyzacja procesów, analizy rynku i raporty dla firm każdej wielkości.</p>
-                  <div className="mt-4 flex items-center justify-between border-t border-slate-700/50 pt-3">
-                    <span className="text-xs font-semibold text-emerald-400">Darmowy</span>
-                    <span className="text-xs text-slate-500">⚡ 1 247 uruchomień</span>
-                  </div>
-                </div>
+            <div className="space-y-4 rounded-xl bg-slate-50 border border-slate-100 p-4 text-sm text-slate-700">
+              <div>
+                <p className="mb-1.5 font-semibold text-slate-800">✔ Zakres usług:</p>
+                <ul className="ml-4 space-y-1 text-slate-600">
+                  <li>– wykopy pod fundamenty</li>
+                  <li>– instalacje wod-kan</li>
+                  <li>– niwelacja terenu</li>
+                </ul>
               </div>
+              <div>
+                <p className="font-semibold text-slate-800">✔ Cena: <span className="text-indigo-700">160 zł/h</span></p>
+              </div>
+              <div>
+                <p className="font-semibold text-emerald-700">✔ Gotowe do wysłania</p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-3">
+              <button className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:border-indigo-300 hover:text-indigo-700">
+                ⎘ Kopiuj
+              </button>
+              <button className="flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-500">
+                ✉ Wyślij
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Stats bar ────────────────────────────────────────────────── */}
-      <section className="border-b border-slate-200 bg-white px-6 py-5">
+      {/* ── Najczęściej używane ───────────────────────────────────────── */}
+      <section className="bg-white px-6 py-16">
         <div className="mx-auto max-w-7xl">
-          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-3">
-            {[
-              { value: "200+", label: "agentów AI" },
-              { value: "8", label: "kategorii" },
-              { value: "3", label: "darmowe uruchomienia" },
-            ].map((stat) => (
-              <div key={stat.label} className="flex items-center gap-2">
-                <span className="text-xl font-extrabold text-slate-900">{stat.value}</span>
-                <span className="text-sm text-slate-500">{stat.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Quick Start ───────────────────────────────────────────────── */}
-      <section className="bg-white px-6 py-14">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-8 text-center">
+          <div className="mb-10 text-center">
             <p className="mb-2 text-xs font-bold uppercase tracking-widest text-indigo-500">Zacznij teraz</p>
-            <h2 className="text-3xl font-extrabold text-slate-900">Wypróbuj w 10 sekund</h2>
-            <p className="mt-2 text-sm text-slate-500">Bez rejestracji — kliknij i wklej swoje dane</p>
+            <h2 className="text-3xl font-extrabold text-slate-900">Najczęściej używane</h2>
+            <p className="mt-2 text-sm text-slate-500">Kliknij i wklej swoje dane — wynik w kilka sekund</p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: "✉️",
@@ -188,6 +149,33 @@ export default async function HomePage() {
                 border: "border-emerald-100 hover:border-emerald-300",
                 badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
               },
+              {
+                icon: "💼",
+                title: "Oferta handlowa",
+                desc: "Opisz usługę → gotowa oferta B2B do wysłania",
+                slug: "oferta-handlowa",
+                color: "from-amber-50 to-orange-50",
+                border: "border-amber-100 hover:border-amber-300",
+                badge: "bg-amber-50 text-amber-700 border-amber-200",
+              },
+              {
+                icon: "🧾",
+                title: "Faktura / wycena",
+                desc: "Podaj dane → profesjonalna wycena w sekundy",
+                slug: "kalkulator-kosztow-koparka",
+                color: "from-rose-50 to-pink-50",
+                border: "border-rose-100 hover:border-rose-300",
+                badge: "bg-rose-50 text-rose-700 border-rose-200",
+              },
+              {
+                icon: "📢",
+                title: "Post na social media",
+                desc: "Opisz temat → gotowy post na LinkedIn lub FB",
+                slug: "post-linkedin",
+                color: "from-sky-50 to-cyan-50",
+                border: "border-sky-100 hover:border-sky-300",
+                badge: "bg-sky-50 text-sky-700 border-sky-200",
+              },
             ].map((tile) => (
               <Link
                 key={tile.slug}
@@ -212,55 +200,125 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Featured agents ──────────────────────────────────────────── */}
-      <section className="mx-auto max-w-7xl px-6 py-16">
-        <div className="mb-8 flex items-end justify-between">
-          <div>
-            <h2 className="text-3xl font-extrabold text-slate-900">Najpopularniejsze agenty</h2>
-            <p className="mt-1.5 text-sm text-slate-500">Najchętniej uruchamiane przez użytkowników</p>
+      {/* ── Dlaczego to działa ────────────────────────────────────────── */}
+      <section className="border-y border-slate-200 bg-slate-50 px-6 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-12 text-center">
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-indigo-500">Jak to działa</p>
+            <h2 className="text-3xl font-extrabold text-slate-900">Dlaczego to działa</h2>
           </div>
-          <Link
-            href="/agents"
-            className="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors sm:flex items-center gap-1"
-          >
-            Zobacz wszystkich →
-          </Link>
-        </div>
-
-        {featured.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-16 text-center">
-            <div className="mb-4 text-4xl">🤖</div>
-            <p className="font-bold text-slate-800">Brak opublikowanych agentów</p>
-            <p className="mt-1.5 text-sm text-slate-500">Sprawdź wkrótce — twórcy właśnie dodają swoje agenty.</p>
-          </div>
-        ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.map((agent, i) => (
-              <AgentCard
-                key={agent.id}
-                slug={agent.slug}
-                name={agent.name}
-                tagline={agent.tagline}
-                category={agent.category}
-                pricingType={agent.pricingType}
-                pricingLabel={agent.pricingLabel}
-                runsCount={agent.runsCount}
-                featured={i === 0}
-                isNew={i >= 4}
-              />
+          <div className="grid gap-8 sm:grid-cols-3">
+            {[
+              {
+                icon: "⚡",
+                title: "Gotowe w 30 sekund",
+                desc: "Opisujesz zadanie w jednym zdaniu. Agent generuje pełny wynik natychmiast — bez czekania, bez konfiguracji.",
+                color: "from-indigo-50 to-violet-50",
+                border: "border-indigo-100",
+              },
+              {
+                icon: "✍️",
+                title: "Nie piszesz od zera",
+                desc: "Dostajesz gotowy szkielet — ofertę, maila, analizę. Edytujesz tylko to, co chcesz zmienić.",
+                color: "from-emerald-50 to-teal-50",
+                border: "border-emerald-100",
+              },
+              {
+                icon: "📤",
+                title: "Kopiujesz i wysyłasz",
+                desc: "Wynik jest sformatowany i gotowy do użycia. Kopia do schowka lub bezpośrednio do klienta mailem.",
+                color: "from-amber-50 to-orange-50",
+                border: "border-amber-100",
+              },
+            ].map((item) => (
+              <div
+                key={item.title}
+                className={`rounded-2xl border bg-gradient-to-br ${item.color} ${item.border} p-6 shadow-sm`}
+              >
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white shadow-sm border border-slate-100 text-2xl">
+                  {item.icon}
+                </div>
+                <h3 className="mb-2 text-lg font-extrabold text-slate-900">{item.title}</h3>
+                <p className="text-sm leading-relaxed text-slate-500">{item.desc}</p>
+              </div>
             ))}
           </div>
-        )}
+        </div>
+      </section>
 
-        <div className="mt-6 text-center sm:hidden">
-          <Link href="/agents" className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">
-            Zobacz wszystkich agentów →
-          </Link>
+      {/* ── Proof ────────────────────────────────────────────────────── */}
+      <section className="bg-white px-6 py-10">
+        <div className="mx-auto max-w-5xl">
+          <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-4 text-center">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-extrabold text-slate-900">200+</span>
+              <span className="text-sm text-slate-500">wygenerowanych wyników</span>
+            </div>
+            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-extrabold text-slate-900">8</span>
+              <span className="text-sm text-slate-500">kategorii agentów</span>
+            </div>
+            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-extrabold text-slate-900">3</span>
+              <span className="text-sm text-slate-500">darmowe uruchomienia na start</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Featured agents ──────────────────────────────────────────── */}
+      <section className="border-t border-slate-200 bg-slate-50 px-6 py-16">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8 flex items-end justify-between">
+            <div>
+              <h2 className="text-3xl font-extrabold text-slate-900">Najpopularniejsze agenty</h2>
+              <p className="mt-1.5 text-sm text-slate-500">Najchętniej uruchamiane przez użytkowników</p>
+            </div>
+            <Link
+              href="/agents"
+              className="hidden text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors sm:flex items-center gap-1"
+            >
+              Zobacz wszystkich →
+            </Link>
+          </div>
+
+          {featured.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center">
+              <div className="mb-4 text-4xl">🤖</div>
+              <p className="font-bold text-slate-800">Brak opublikowanych agentów</p>
+              <p className="mt-1.5 text-sm text-slate-500">Sprawdź wkrótce — twórcy właśnie dodają swoje agenty.</p>
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {featured.map((agent, i) => (
+                <AgentCard
+                  key={agent.id}
+                  slug={agent.slug}
+                  name={agent.name}
+                  tagline={agent.tagline}
+                  category={agent.category}
+                  pricingType={agent.pricingType}
+                  pricingLabel={agent.pricingLabel}
+                  runsCount={agent.runsCount}
+                  featured={i === 0}
+                  isNew={i >= 4}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6 text-center sm:hidden">
+            <Link href="/agents" className="text-sm font-semibold text-indigo-600 hover:text-indigo-800">
+              Zobacz wszystkich agentów →
+            </Link>
+          </div>
         </div>
       </section>
 
       {/* ── Categories ───────────────────────────────────────────────── */}
-      <section className="border-y border-slate-200 bg-slate-50 px-6 py-16">
+      <section className="border-y border-slate-200 bg-white px-6 py-16">
         <div className="mx-auto max-w-7xl">
           <div className="mb-10 text-center">
             <h2 className="text-3xl font-extrabold text-slate-900">Kategorie agentów</h2>
@@ -281,51 +339,6 @@ export default async function HomePage() {
                   <p className="text-xs text-slate-500 leading-snug">{cat.desc}</p>
                 </div>
               </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── How it works ─────────────────────────────────────────────── */}
-      <section className="bg-white px-6 py-16">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-extrabold text-slate-900">Jak to działa?</h2>
-            <p className="mt-1.5 text-sm text-slate-500">Trzy proste kroki do gotowego wyniku</p>
-          </div>
-          <div className="relative grid gap-8 sm:grid-cols-3">
-            {/* Connector line */}
-            <div className="absolute left-0 right-0 top-10 hidden h-px bg-gradient-to-r from-transparent via-indigo-200 to-transparent sm:block" />
-            {[
-              {
-                step: "01",
-                title: "Wybierz agenta",
-                desc: "Przejrzyj katalog agentów AI. Filtruj po kategorii, cenie lub popularności.",
-                icon: "🔍",
-              },
-              {
-                step: "02",
-                title: "Wpisz zapytanie",
-                desc: "Opisz zadanie dla agenta. Każdy agent ma 3 darmowe uruchomienia dla nowych użytkowników.",
-                icon: "✍️",
-              },
-              {
-                step: "03",
-                title: "Dostaj wyniki",
-                desc: "Agent AI generuje wynik w kilka sekund. Pełna historia uruchomień zawsze dostępna.",
-                icon: "⚡",
-              },
-            ].map((item) => (
-              <div key={item.step} className="relative flex flex-col items-center text-center">
-                <div className="relative mb-5 flex h-20 w-20 items-center justify-center rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 text-3xl shadow-sm">
-                  {item.icon}
-                  <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white shadow">
-                    {item.step}
-                  </span>
-                </div>
-                <h3 className="mb-2 font-bold text-slate-900">{item.title}</h3>
-                <p className="text-sm leading-relaxed text-slate-500">{item.desc}</p>
-              </div>
             ))}
           </div>
         </div>
@@ -369,7 +382,6 @@ export default async function HomePage() {
             </div>
             <div className="hidden md:block">
               <div className="rounded-2xl border border-slate-700 bg-slate-800/80 p-6 shadow-2xl">
-                {/* Window chrome */}
                 <div className="mb-5 flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-red-500/80" />
                   <div className="h-3 w-3 rounded-full bg-yellow-500/80" />
@@ -394,53 +406,6 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ── Pricing models ───────────────────────────────────────────── */}
-      <section className="border-t border-slate-200 bg-slate-50 px-6 py-16">
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-10 text-center">
-            <h2 className="text-3xl font-extrabold text-slate-900">Modele cenowe agentów</h2>
-            <p className="mt-1.5 text-sm text-slate-500">Elastyczne opcje dla każdego przypadku użycia</p>
-          </div>
-          <div className="grid gap-5 sm:grid-cols-3">
-            {[
-              {
-                icon: "🆓",
-                title: "Darmowy",
-                desc: "Nieograniczony dostęp. Idealny dla narzędzi edukacyjnych i próbek.",
-                badge: "FREE",
-                badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-              },
-              {
-                icon: "💳",
-                title: "Jednorazowy",
-                desc: "Płać raz, używaj zawsze. Dla specjalistycznych narzędzi premium.",
-                badge: "ONE-TIME",
-                badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
-              },
-              {
-                icon: "🔄",
-                title: "Subskrypcja",
-                desc: "Miesięczna opłata za nieograniczony dostęp i aktualizacje agenta.",
-                badge: "SUB",
-                badgeColor: "bg-violet-50 text-violet-700 border-violet-200",
-              },
-            ].map((m) => (
-              <div key={m.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="mb-4 flex items-center justify-between">
-                  <span className="text-3xl">{m.icon}</span>
-                  <span className={`rounded-lg border px-2.5 py-0.5 text-xs font-bold ${m.badgeColor}`}>{m.badge}</span>
-                </div>
-                <h3 className="font-bold text-slate-900 text-base">{m.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">{m.desc}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-6 text-center text-xs text-slate-400">
-            Każdy agent — niezależnie od modelu — oferuje 3 darmowe uruchomienia dla nowych użytkowników
-          </p>
         </div>
       </section>
 
