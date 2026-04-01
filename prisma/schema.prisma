@@ -95,17 +95,19 @@ model AgentRun {
 }
 
 model AgentAccess {
-  id        String   @id @default(cuid())
-  userId    String
-  agentId   String
-  createdAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  agentId        String
+  subscriptionId String?  // Stripe subscription ID — set for SUBSCRIPTION pricing
+  createdAt      DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent          Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, agentId])
   @@index([userId])
   @@index([agentId])
+  @@index([subscriptionId])
 }
 
 // Fake pay-per-use credits (one record = one purchased run)
