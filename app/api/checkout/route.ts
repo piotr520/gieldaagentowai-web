@@ -37,6 +37,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ten agent jest darmowy." }, { status: 400 });
   }
 
+  if (agent.pricingType === "PAY_PER_USE") {
+    return NextResponse.json(
+      { error: "Zakup dodatkowych użyć jest tymczasowo niedostępny." },
+      { status: 503 }
+    );
+  }
+
   // Jeśli użytkownik już ma dostęp — nie tworzymy sesji
   const existing = await prisma.agentAccess.findUnique({
     where: { userId_agentId: { userId: session.user.id, agentId: agent.id } },

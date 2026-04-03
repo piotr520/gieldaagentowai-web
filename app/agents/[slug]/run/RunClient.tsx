@@ -410,7 +410,7 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
                   <p className="mt-2 text-sm leading-relaxed text-amber-700">
                     Wykorzystałeś wszystkie {state?.freeLimit} darmowe uruchomienia tego agenta.
                   </p>
-                  {isPaid && (
+                  {isPaid && state?.pricingType !== "PAY_PER_USE" && (
                     <div className="mt-6">
                       <button
                         onClick={handlePurchase}
@@ -421,6 +421,11 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
                       </button>
                       <p className="mt-2 text-xs text-amber-600">Bezpieczna płatność przez Stripe</p>
                     </div>
+                  )}
+                  {state?.pricingType === "PAY_PER_USE" && (
+                    <p className="mt-4 rounded-xl border border-amber-200 bg-amber-100/60 px-4 py-3 text-sm text-amber-800">
+                      Zakup kolejnych użyć jest tymczasowo niedostępny.
+                    </p>
                   )}
                 </div>
 

@@ -7,8 +7,7 @@ import {
   fetchPageContent,
   extractReadableText,
 } from "../../../lib/url-utils";
-
-const FREE_RUNS_DEFAULT = 3;
+import { FREE_RUNS_DEFAULT } from "../../../lib/constants";
 
 // Rate limiting: 10 POST requests per user per minute (in-memory, per instance)
 const RATE_LIMIT_MAX = 10;
@@ -62,10 +61,8 @@ async function getAgentState(agentSlug: string, userId: string | null) {
     ? await prisma.agentRun.count({ where: { agentId: agent.id, userId } })
     : 0;
 
-  // Paid credits (FakePayment = 1 purchased run each)
-  const paidCredits = userId && isPayPerUse
-    ? await prisma.fakePayment.count({ where: { agentId: agent.id, userId } })
-    : 0;
+  // SAFE MODE: FakePayment credits disabled — pay-per-use purchase not yet live.
+  const paidCredits = 0;
 
   let hasAccess = false;
   if (isFree) {
@@ -232,15 +229,8 @@ export async function POST(req: Request) {
       const userRunCount = await prisma.agentRun.count({
         where: { agentId: agent.id, userId },
       });
-      if (userRunCount < freeLimit) {
-        hasAccess = true;
-      } else {
-        const paidCredits = await prisma.fakePayment.count({
-          where: { agentId: agent.id, userId },
-        });
-        const usedPaidRuns = userRunCount - freeLimit;
-        hasAccess = paidCredits > usedPaidRuns;
-      }
+      // SAFE MODE: only free trial runs allowed for PAY_PER_USE.
+      hasAccess = userRunCount < freeLimit;
     } else {
       // ONE_TIME or SUBSCRIPTION — AgentAccess record required
       hasAccess = !!(await prisma.agentAccess.findUnique({
@@ -261,14 +251,11 @@ export async function POST(req: Request) {
       if (isPayPerUse) {
         return NextResponse.json(
           {
-            error: "PAYWALL",
-            message: "Wymagana płatność za użycie",
-            pricePerUse: agent.pricePerUse,
-            requiresPayment: true,
+            error: "Darmowe uruchomienia wyczerpane. Zakup kolejnych użyć jest tymczasowo niedostępny.",
             ...state,
             isAuthenticated: true,
           },
-          { status: 402 }
+          { status: 403 }
         );
       }
       return NextResponse.json(
