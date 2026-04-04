@@ -44,14 +44,15 @@ export async function POST(req: NextRequest) {
 
   if (event.type === "invoice.payment_failed") {
     const invoice = event.data.object;
+    // In Stripe SDK 21+ (API 2026-03-25.dahlia), subscription is nested under parent.subscription_details
+    const subscriptionRaw = invoice.parent?.subscription_details?.subscription;
     const subscriptionId =
-      typeof invoice.subscription === "string" ? invoice.subscription : null;
+      typeof subscriptionRaw === "string" ? subscriptionRaw : (subscriptionRaw?.id ?? null);
     const customerId =
-      typeof invoice.customer === "string" ? invoice.customer : null;
+      typeof invoice.customer === "string" ? invoice.customer : (invoice.customer?.id ?? null);
     const invoiceId = invoice.id;
     const invoiceStatus = invoice.status ?? "unknown";
-    // billing_reason is available on the Invoice object (e.g. "subscription_cycle", "manual")
-    const billingReason = (invoice as { billing_reason?: string }).billing_reason ?? "unknown";
+    const billingReason = invoice.billing_reason ?? "unknown";
 
     console.error(
       `Stripe webhook: invoice.payment_failed — invoiceId=${invoiceId} customerId=${customerId ?? "unknown"} subscriptionId=${subscriptionId ?? "none"} status=${invoiceStatus} billing_reason=${billingReason}`
