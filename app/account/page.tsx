@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const FREE_LIMIT = 3;
+import { FREE_RUNS_DEFAULT } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +55,7 @@ export default async function AccountPage() {
   const usedAgents = agentIds.length
     ? await prisma.agent.findMany({
         where: { id: { in: agentIds } },
-        select: { id: true, name: true, slug: true },
+        select: { id: true, name: true, slug: true, freeRuns: true },
       })
     : [];
 
@@ -156,8 +155,9 @@ export default async function AccountPage() {
                 const agent = agentMap[stat.agentId];
                 if (!agent) return null;
                 const used = stat._count.id;
-                const remaining = Math.max(0, FREE_LIMIT - used);
-                const pct = Math.min(100, (used / FREE_LIMIT) * 100);
+                const freeLimit = agent.freeRuns ?? FREE_RUNS_DEFAULT;
+                const remaining = Math.max(0, freeLimit - used);
+                const pct = freeLimit > 0 ? Math.min(100, (used / freeLimit) * 100) : 100;
                 return (
                   <div key={stat.agentId} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="mb-3 flex items-center justify-between gap-4">
@@ -182,7 +182,7 @@ export default async function AccountPage() {
                         />
                       </div>
                       <span className="shrink-0 text-xs font-medium text-slate-500">
-                        {used}/{FREE_LIMIT} · {remaining} pozostało
+                        {used}/{freeLimit} · {remaining} pozostało
                       </span>
                     </div>
                   </div>

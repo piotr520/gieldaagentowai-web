@@ -25,6 +25,7 @@ enum PricingType {
   FREE
   ONE_TIME
   SUBSCRIPTION
+  PAY_PER_USE
 }
 
 model User {
@@ -39,6 +40,7 @@ model User {
   agentRuns           AgentRun[]
   agentAccess         AgentAccess[]
   passwordResetTokens PasswordResetToken[]
+  fakePayments        FakePayment[]
 }
 
 model Agent {
@@ -51,6 +53,8 @@ model Agent {
   pricingLabel             String
   pricingAmountPln         Int?
   pricingAmountPlnPerMonth Int?
+  pricePerUse              Int?        // PLN per run, only for PAY_PER_USE
+  freeRuns                 Int?        // free trial runs (default 3 in code)
   description              String
   limitationsJson          String
   examplesJson             String
@@ -67,6 +71,8 @@ model Agent {
 
   runs                     AgentRun[]
   access                   AgentAccess[]
+  fakePayments             FakePayment[]
+  executions               AgentExecution[]
 
   @@index([status])
   @@index([category])
@@ -89,6 +95,23 @@ model AgentRun {
 }
 
 model AgentAccess {
+  id             String   @id @default(cuid())
+  userId         String
+  agentId        String
+  subscriptionId String?  // Stripe subscription ID — set for SUBSCRIPTION pricing
+  createdAt      DateTime @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent          Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentId])
+  @@index([userId])
+  @@index([agentId])
+  @@index([subscriptionId])
+}
+
+// Fake pay-per-use credits (one record = one purchased run)
+model FakePayment {
   id        String   @id @default(cuid())
   userId    String
   agentId   String
@@ -97,9 +120,23 @@ model AgentAccess {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, agentId])
-  @@index([userId])
+  @@index([userId, agentId])
   @@index([agentId])
+}
+
+// Preparation for future automations — NOT active yet
+model AgentExecution {
+  id         String   @id @default(cuid())
+  agentId    String
+  type       String   // "manual" | "email" | "webhook" | "scheduled"
+  status     String   // "active" | "paused"
+  configJson String   // {"email":"..."} | {"url":"..."} | {"cron":"..."}
+  createdAt  DateTime @default(now())
+
+  agent      Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([type])
 }
 
 model PasswordResetToken {
