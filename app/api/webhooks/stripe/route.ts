@@ -1,66 +1,119 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 
-export const runtime = "nodejs";
-
-export async function POST(req: NextRequest) {
-  const sig = req.headers.get("stripe-signature");
+// Next.js App Router: read raw body via req.text() — no bodyParser config needed.
+export async function POST(req: Request) {
+  const body = await req.text();
+  const signature = req.headers.get("stripe-signature") ?? "";
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!sig || !webhookSecret) {
-    return NextResponse.json({ error: "Brak podpisu lub sekretu webhooka." }, { status: 400 });
+  if (!webhookSecret) {
+    console.error("Stripe webhook: STRIPE_WEBHOOK_SECRET is not set");
+    return NextResponse.json(
+      { error: "Webhook secret not configured." },
+      { status: 500 }
+    );
   }
 
-  let event;
+  // Verify signature
+  let event: Stripe.Event;
   try {
-    const rawBody = await req.text();
-    event = getStripe().webhooks.constructEvent(rawBody, sig, webhookSecret);
+    event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
-    console.error("Stripe webhook error:", err);
-    return NextResponse.json({ error: "Nieprawidłowy podpis webhooka." }, { status: 400 });
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    console.error("Stripe webhook: signature verification failed:", msg);
+    return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object;
-    const { userId, agentId } = session.metadata ?? {};
+  console.log(`Stripe webhook received: ${event.type} [${event.id}]`);
 
-    if (!userId || !agentId) {
-      console.error("Stripe webhook: brak metadata", session.metadata);
-      return NextResponse.json({ error: "Brak metadata." }, { status: 400 });
-    }
+  try {
+    switch (event.type) {
 
-    const paymentStatus = session.payment_status;
-    if (paymentStatus === "paid") {
-      console.log(
-        `Stripe webhook: payment_status=paid — aktywuję dostęp userId=${userId} agentId=${agentId} session=${session.id}`
-      );
-    } else if (paymentStatus === "unpaid") {
-      console.warn(
-        `Stripe webhook: payment_status=unpaid — pomijam AgentAccess userId=${userId} agentId=${agentId} session=${session.id}`
-      );
-      return NextResponse.json({ received: true });
-    } else if (paymentStatus === "no_payment_required") {
-      console.log(
-        `Stripe webhook: payment_status=no_payment_required — aktywuję dostęp userId=${userId} agentId=${agentId} session=${session.id}`
-      );
-    } else {
-      console.error(
-        `Stripe webhook: nieoczekiwany payment_status="${paymentStatus}" — pomijam AgentAccess userId=${userId} agentId=${agentId} session=${session.id}`
-      );
-      return NextResponse.json({ received: true });
-    }
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
 
-    try {
-      await prisma.agentAccess.upsert({
-        where: { userId_agentId: { userId, agentId } },
-        update: {},
-        create: { userId, agentId },
-      });
-    } catch (err) {
-      console.error("Stripe webhook: błąd zapisu AgentAccess:", err);
-      return NextResponse.json({ error: "Błąd zapisu." }, { status: 500 });
+        const userId = session.metadata?.userId;
+        const agentId = session.metadata?.agentId;
+
+        if (!userId || !agentId) {
+          console.error(
+            `Stripe webhook: checkout.session.completed missing metadata — session ${session.id}`
+          );
+          return NextResponse.json({ received: true });
+        }
+
+        // Guard: only activate purchase when payment is confirmed
+        const paymentStatus = session.payment_status;
+        if (paymentStatus === "paid") {
+          console.log(
+            `Stripe webhook: payment_status=paid — activating access userId=${userId} agentId=${agentId} session=${session.id}`
+          );
+        } else if (paymentStatus === "unpaid") {
+          console.warn(
+            `Stripe webhook: payment_status=unpaid — skipping AgentAccess userId=${userId} agentId=${agentId} session=${session.id}`
+          );
+          return NextResponse.json({ received: true });
+        } else if (paymentStatus === "no_payment_required") {
+          console.log(
+            `Stripe webhook: payment_status=no_payment_required — activating access userId=${userId} agentId=${agentId} session=${session.id}`
+          );
+        } else {
+          console.error(
+            `Stripe webhook: unexpected payment_status="${paymentStatus}" — skipping AgentAccess userId=${userId} agentId=${agentId} session=${session.id}`
+          );
+          return NextResponse.json({ received: true });
+        }
+
+        const subscriptionId =
+          typeof session.subscription === "string"
+            ? session.subscription
+            : (session.subscription as Stripe.Subscription | null)?.id ?? null;
+
+        await prisma.agentAccess.upsert({
+          where: { userId_agentId: { userId, agentId } },
+          create: { userId, agentId, subscriptionId: subscriptionId ?? null },
+          update: { subscriptionId: subscriptionId ?? null },
+        });
+
+        console.log(
+          `Stripe webhook: AgentAccess granted — userId=${userId} agentId=${agentId}` +
+            (subscriptionId ? ` subscriptionId=${subscriptionId}` : " (one-time)")
+        );
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const subscriptionId = subscription.id;
+
+        const deleted = await prisma.agentAccess.deleteMany({
+          where: { subscriptionId },
+        });
+
+        if (deleted.count > 0) {
+          console.log(
+            `Stripe webhook: AgentAccess revoked — subscriptionId=${subscriptionId} (${deleted.count} record(s))`
+          );
+        } else {
+          console.warn(
+            `Stripe webhook: no AgentAccess found for subscriptionId=${subscriptionId}`
+          );
+        }
+        break;
+      }
+
+      default:
+        console.log(`Stripe webhook: unhandled event type ${event.type} — ignored`);
     }
+  } catch (err) {
+    console.error(`Stripe webhook: error handling ${event.type}:`, err);
+    return NextResponse.json(
+      { error: "Internal error processing webhook." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ received: true });

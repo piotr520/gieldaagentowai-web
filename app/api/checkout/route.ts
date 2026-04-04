@@ -37,6 +37,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ten agent jest darmowy." }, { status: 400 });
   }
 
+  if (agent.pricingType === "PAY_PER_USE") {
+    return NextResponse.json(
+      { error: "Zakup dodatkowych użyć jest tymczasowo niedostępny." },
+      { status: 503 }
+    );
+  }
+
   // Jeśli użytkownik już ma dostęp — nie tworzymy sesji
   const existing = await prisma.agentAccess.findUnique({
     where: { userId_agentId: { userId: session.user.id, agentId: agent.id } },
@@ -58,15 +65,18 @@ export async function POST(req: NextRequest) {
 
   const stripe = getStripe();
 
+  const isSubscription = agent.pricingType === "SUBSCRIPTION";
+
   const checkoutSession = await stripe.checkout.sessions.create({
-    mode: agent.pricingType === "SUBSCRIPTION" ? "subscription" : "payment",
-    payment_method_types: ["card", "blik", "p24"],
+    mode: isSubscription ? "subscription" : "payment",
+    // blik and p24 are one-time redirect methods — not supported in subscription mode
+    payment_method_types: isSubscription ? ["card"] : ["card", "blik", "p24"],
     line_items: [
       {
         price_data: {
           currency: "pln",
           unit_amount: unitAmount,
-          ...(agent.pricingType === "SUBSCRIPTION"
+          ...(isSubscription
             ? { recurring: { interval: "month" } }
             : {}),
           product_data: {
