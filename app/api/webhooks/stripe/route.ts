@@ -45,6 +45,28 @@ export async function POST(req: Request) {
           return NextResponse.json({ received: true });
         }
 
+        // Guard: only activate purchase when payment is confirmed
+        const paymentStatus = session.payment_status;
+        if (paymentStatus === "paid") {
+          console.log(
+            `Stripe webhook: payment_status=paid — activating access userId=${userId} agentId=${agentId} session=${session.id}`
+          );
+        } else if (paymentStatus === "unpaid") {
+          console.warn(
+            `Stripe webhook: payment_status=unpaid — skipping AgentAccess userId=${userId} agentId=${agentId} session=${session.id}`
+          );
+          return NextResponse.json({ received: true });
+        } else if (paymentStatus === "no_payment_required") {
+          console.log(
+            `Stripe webhook: payment_status=no_payment_required — activating access userId=${userId} agentId=${agentId} session=${session.id}`
+          );
+        } else {
+          console.error(
+            `Stripe webhook: unexpected payment_status="${paymentStatus}" — skipping AgentAccess userId=${userId} agentId=${agentId} session=${session.id}`
+          );
+          return NextResponse.json({ received: true });
+        }
+
         const subscriptionId =
           typeof session.subscription === "string"
             ? session.subscription
