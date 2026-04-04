@@ -30,6 +30,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Brak metadata." }, { status: 400 });
     }
 
+    const paymentStatus = session.payment_status;
+    if (paymentStatus === "paid") {
+      console.log(
+        `Stripe webhook: payment_status=paid — aktywuję dostęp userId=${userId} agentId=${agentId} session=${session.id}`
+      );
+    } else if (paymentStatus === "unpaid") {
+      console.warn(
+        `Stripe webhook: payment_status=unpaid — pomijam AgentAccess userId=${userId} agentId=${agentId} session=${session.id}`
+      );
+      return NextResponse.json({ received: true });
+    } else if (paymentStatus === "no_payment_required") {
+      console.log(
+        `Stripe webhook: payment_status=no_payment_required — aktywuję dostęp userId=${userId} agentId=${agentId} session=${session.id}`
+      );
+    } else {
+      console.error(
+        `Stripe webhook: nieoczekiwany payment_status="${paymentStatus}" — pomijam AgentAccess userId=${userId} agentId=${agentId} session=${session.id}`
+      );
+      return NextResponse.json({ received: true });
+    }
+
     try {
       await prisma.agentAccess.upsert({
         where: { userId_agentId: { userId, agentId } },
