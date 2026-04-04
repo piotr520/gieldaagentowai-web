@@ -42,5 +42,30 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object;
+    const subscriptionId =
+      typeof invoice.subscription === "string" ? invoice.subscription : null;
+    const customerId =
+      typeof invoice.customer === "string" ? invoice.customer : null;
+    const invoiceId = invoice.id;
+    const invoiceStatus = invoice.status ?? "unknown";
+    // billing_reason is available on the Invoice object (e.g. "subscription_cycle", "manual")
+    const billingReason = (invoice as { billing_reason?: string }).billing_reason ?? "unknown";
+
+    console.error(
+      `Stripe webhook: invoice.payment_failed — invoiceId=${invoiceId} customerId=${customerId ?? "unknown"} subscriptionId=${subscriptionId ?? "none"} status=${invoiceStatus} billing_reason=${billingReason}`
+    );
+
+    // AgentAccess is intentionally NOT revoked here.
+    // Stripe retries failed payments (Smart Retries / Dunning) during the
+    // grace period. Revoking access on first failure would break subscriptions
+    // that recover on retry. The definitive revocation happens when Stripe
+    // sends customer.subscription.deleted after all retries are exhausted.
+    console.log(
+      `Stripe webhook: invoice.payment_failed — AgentAccess NOT revoked (awaiting customer.subscription.deleted if retries fail) subscriptionId=${subscriptionId ?? "none"}`
+    );
+  }
+
   return NextResponse.json({ received: true });
 }
