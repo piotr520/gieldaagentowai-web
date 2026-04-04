@@ -2,8 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAgent } from "../../../lib/openai";
 import { prisma } from "../../../lib/prisma";
 import { getSession } from "../../../lib/auth";
+import {
+  isProbablyUrl,
+  fetchPageContent,
+  extractReadableText,
+} from "../../../lib/url-utils";
+import { FREE_RUNS_DEFAULT } from "../../../lib/constants";
 
-const FREE_LIMIT = 3;
+// Rate limiting: 10 POST requests per user per minute (in-memory, per instance)
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+
+  if (!entry || now >= entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000);
+    return { allowed: false, retryAfterSec };
+  }
+
+  entry.count += 1;
+  return { allowed: true, retryAfterSec: 0 };
+}
 
 type RunItem = {
   id: string;
@@ -19,26 +47,42 @@ async function getAgentState(agentSlug: string, userId: string | null) {
       id: true, slug: true, name: true, description: true,
       runsCount: true, pricingType: true, pricingLabel: true,
       pricingAmountPln: true, pricingAmountPlnPerMonth: true,
+      pricePerUse: true, freeRuns: true,
     },
   });
 
   if (!agent) return null;
 
-  const hasAccess = userId
-    ? !!(await prisma.agentAccess.findUnique({
-        where: { userId_agentId: { userId, agentId: agent.id } },
-      }))
-    : false;
-
+  const freeLimit = agent.freeRuns ?? FREE_RUNS_DEFAULT;
   const isFree = agent.pricingType === "FREE";
+  const isPayPerUse = agent.pricingType === "PAY_PER_USE";
 
   const userRunCount = userId
     ? await prisma.agentRun.count({ where: { agentId: agent.id, userId } })
     : 0;
 
-  const usedFreeRuns = userId ? Math.min(userRunCount, FREE_LIMIT) : 0;
-  const remainingFreeRuns =
-    hasAccess || isFree ? FREE_LIMIT : Math.max(0, FREE_LIMIT - userRunCount);
+  // SAFE MODE: FakePayment credits disabled — pay-per-use purchase not yet live.
+  const paidCredits = 0;
+
+  let hasAccess = false;
+  if (isFree) {
+    hasAccess = !!userId;
+  } else if (isPayPerUse) {
+    const totalAvailable = freeLimit + paidCredits;
+    hasAccess = userId ? userRunCount < totalAvailable : false;
+  } else {
+    // ONE_TIME or SUBSCRIPTION — check AgentAccess record
+    hasAccess = userId
+      ? !!(await prisma.agentAccess.findUnique({
+          where: { userId_agentId: { userId, agentId: agent.id } },
+        }))
+      : false;
+  }
+
+  const usedFreeRuns = Math.min(userRunCount, freeLimit);
+  const remainingFreeRuns = isFree
+    ? freeLimit
+    : Math.max(0, freeLimit - userRunCount);
 
   const latestRuns = await prisma.agentRun.findMany({
     where: { agentId: agent.id, ...(userId ? { userId } : {}) },
@@ -62,9 +106,11 @@ async function getAgentState(agentSlug: string, userId: string | null) {
     pricingLabel: agent.pricingLabel,
     pricingAmountPln: agent.pricingAmountPln,
     pricingAmountPlnPerMonth: agent.pricingAmountPlnPerMonth,
-    freeLimit: FREE_LIMIT,
+    pricePerUse: agent.pricePerUse,
+    freeLimit,
     usedFreeRuns,
     remainingFreeRuns,
+    paidCredits,
     hasAccess,
     latestRuns: runs,
   };
@@ -99,6 +145,15 @@ export async function POST(req: Request) {
       );
     }
 
+    // Rate limit check
+    const { allowed, retryAfterSec } = checkRateLimit(userId);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Zbyt wiele żądań. Spróbuj ponownie za ${retryAfterSec} s.` },
+        { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
+      );
+    }
+
     const body = await req.json();
     const agentSlug = typeof body.agentSlug === "string" ? body.agentSlug.trim() : "";
     const userInput = typeof body.input === "string" ? body.input.trim() : "";
@@ -107,57 +162,143 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Brak wymaganych pól: agentSlug, input." }, { status: 400 });
     }
 
+    // ── URL ingestion ────────────────────────────────────────────────────────
+    // If the input looks like a URL, fetch the page and use its text content.
+    // The original URL is preserved as sourceUrl for the model context and saved
+    // to run history so the sidebar shows the URL (not the raw extracted text).
+    let resolvedInput = userInput;
+    let sourceUrl: string | null = null;
+
+    if (isProbablyUrl(userInput)) {
+      sourceUrl = userInput;
+      try {
+        const html = await fetchPageContent(userInput);
+        const extracted = extractReadableText(html);
+        if (extracted.length < 50) {
+          return NextResponse.json(
+            {
+              error:
+                "Nie udało się pobrać treści strony. Wklej treść ręcznie albo spróbuj innego linku.",
+            },
+            { status: 422 }
+          );
+        }
+        resolvedInput = extracted;
+      } catch (urlErr) {
+        const msg = urlErr instanceof Error ? urlErr.message : "";
+        console.error("POST /api/run-agent — URL fetch error:", msg);
+        if (msg === "BLOCKED_HOST" || msg === "UNSAFE_PROTOCOL") {
+          return NextResponse.json(
+            { error: "Ten adres URL jest niedozwolony." },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json(
+          {
+            error:
+              "Nie udało się pobrać treści strony. Wklej treść ręcznie albo spróbuj innego linku.",
+          },
+          { status: 422 }
+        );
+      }
+    }
+
+    // ── Load agent ───────────────────────────────────────────────────────────
     const agent = await prisma.agent.findUnique({
       where: { slug: agentSlug },
-      select: { id: true, name: true, description: true, status: true, pricingType: true },
+      select: {
+        id: true, name: true, description: true, status: true,
+        pricingType: true, pricePerUse: true, freeRuns: true,
+      },
     });
 
     if (!agent || agent.status !== "PUBLISHED") {
       return NextResponse.json({ error: "Nie znaleziono agenta." }, { status: 404 });
     }
 
+    const freeLimit = agent.freeRuns ?? FREE_RUNS_DEFAULT;
     const isFree = agent.pricingType === "FREE";
+    const isPayPerUse = agent.pricingType === "PAY_PER_USE";
 
-    const hasAccess = isFree
-      ? true
-      : !!(await prisma.agentAccess.findUnique({
-          where: { userId_agentId: { userId, agentId: agent.id } },
-        }));
+    // ── Access check ─────────────────────────────────────────────────────────
+    let hasAccess = false;
 
-    if (!hasAccess) {
+    if (isFree) {
+      hasAccess = true;
+    } else if (isPayPerUse) {
       const userRunCount = await prisma.agentRun.count({
         where: { agentId: agent.id, userId },
       });
+      // SAFE MODE: only free trial runs allowed for PAY_PER_USE.
+      hasAccess = userRunCount < freeLimit;
+    } else {
+      // ONE_TIME or SUBSCRIPTION — AgentAccess record required
+      hasAccess = !!(await prisma.agentAccess.findUnique({
+        where: { userId_agentId: { userId, agentId: agent.id } },
+      }));
 
-      if (userRunCount >= FREE_LIMIT) {
-        const state = await getAgentState(agentSlug, userId);
-        return NextResponse.json(
-          { error: "Limit darmowych użyć wyczerpany.", ...state, isAuthenticated: true },
-          { status: 403 }
-        );
+      if (!hasAccess) {
+        // Still allow free trial runs
+        const userRunCount = await prisma.agentRun.count({
+          where: { agentId: agent.id, userId },
+        });
+        hasAccess = userRunCount < freeLimit;
       }
     }
 
-    const result = await runAgent({
-      agentName: agent.name,
-      agentDescription: agent.description,
-      userInput,
-    });
+    if (!hasAccess) {
+      const state = await getAgentState(agentSlug, userId);
+      if (isPayPerUse) {
+        return NextResponse.json(
+          {
+            error: "Darmowe uruchomienia wyczerpane. Zakup kolejnych użyć jest tymczasowo niedostępny.",
+            ...state,
+            isAuthenticated: true,
+          },
+          { status: 403 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Limit darmowych użyć wyczerpany.", ...state, isAuthenticated: true },
+        { status: 403 }
+      );
+    }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.agent.update({
-        where: { id: agent.id },
-        data: { runsCount: { increment: 1 } },
+    // ── Run OpenAI ───────────────────────────────────────────────────────────
+    let result: string;
+    try {
+      result = await runAgent({
+        agentName: agent.name,
+        agentDescription: agent.description,
+        userInput: resolvedInput,
+        sourceUrl,
       });
-      await tx.agentRun.create({
-        data: { agentId: agent.id, userId, inputJson: userInput, outputText: result },
+    } catch (openaiError) {
+      console.error("POST /api/run-agent — OpenAI error:", openaiError);
+      return NextResponse.json({ error: "Nie udało się uruchomić agenta." }, { status: 500 });
+    }
+
+    // ── Save run ─────────────────────────────────────────────────────────────
+    // Store the original userInput (URL or plain text) — not the extracted content.
+    // This keeps the history sidebar clean and readable.
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.agent.update({
+          where: { id: agent.id },
+          data: { runsCount: { increment: 1 } },
+        });
+        await tx.agentRun.create({
+          data: { agentId: agent.id, userId, inputJson: userInput, outputText: result },
+        });
       });
-    });
+    } catch (dbError) {
+      console.error("POST /api/run-agent — DB transaction error:", dbError);
+    }
 
     const state = await getAgentState(agentSlug, userId);
     return NextResponse.json({ result, ...state, isAuthenticated: true });
   } catch (error) {
-    console.error("POST /api/run-agent error:", error);
+    console.error("POST /api/run-agent — unexpected error:", error);
     return NextResponse.json({ error: "Nie udało się uruchomić agenta." }, { status: 500 });
   }
 }
