@@ -188,6 +188,7 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
       }
 
       setResult(data.result ?? "");
+      setInput("");
       setState(data);
     } catch {
       setError("Nie udało się połączyć z API.");
@@ -247,7 +248,7 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleRun();
     }
@@ -535,7 +536,7 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
                     <p className="text-base font-extrabold text-slate-700">Gotowy do uruchomienia</p>
                     <p className="mt-2 text-sm leading-relaxed text-slate-400">
                       Wpisz zapytanie lub wklej link do strony.<br />
-                      Naciśnij <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-600">Ctrl+Enter</kbd> aby wysłać.
+                      Naciśnij <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-slate-600">Enter</kbd> aby wysłać.
                     </p>
                   </div>
                 </div>
@@ -584,8 +585,8 @@ export default function RunClient({ slug, agentName, agentTagline }: Props) {
                   </div>
                   <div className="mt-2 flex items-center justify-between px-1">
                     <span className="text-[11px] text-slate-400">
-                      <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono font-semibold">Ctrl+Enter</kbd>{" "}
-                      aby wysłać
+                      <kbd className="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono font-semibold">Enter</kbd>{" "}
+                      wysyła · Shift+Enter nowa linia
                     </span>
                     {state && (
                       <span className="text-[11px] text-slate-400">
